@@ -1,0 +1,272 @@
+// Reading fixes, applied on the page to what Sudachi returns (pure functions, tested in Node).
+//
+// everydayReadings (on by default):
+//   - words where Sudachi's dictionary prefers a formal or rare reading (私 わたくし → わたし, 明日 あす → あした...),
+//     found by comparing Sudachi with the 10,000 most frequent words (PikaPikaGems/jp-word-ranks-data)
+//   - numbers: Sudachi reads digits one at a time (10 → いちれい) and leaves out sound changes (一回 いちかい,
+//     4日 よんか). A run of digits / kanji numerals becomes ONE word with the reading of the whole number, and the
+//     counter after it gets its sound change (10月 じゅうがつ, 一回 いっかい, 3本 さんぼん, 20日 はつか)
+// readings (the app's own): { "私": "わたくし" }, applied last. A key may span several words; they become one.
+//
+// Readings stay katakana (like Sudachi's); keys and values may be given in either kana.
+
+const toKatakana = (s) => s.replace(/[ぁ-ゖ]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0x60));
+
+// ------------------------------------------------------------------------------------------------ words
+
+/** Same surface, any context. */
+const WORDS = {
+  "私": "ワタシ", "明日": "アシタ", "日本": "ニホン", "一度": "イチド", "何人": "ナンニン", "何分": "ナンプン", "上手": "ジョウズ",
+  "或いは": "アルイハ", "若しくは": "モシクハ", "所謂": "イワユル", "煩い": "ウルサイ", "不味い": "マズイ",
+};
+
+const FAMILY = { "父": "トウ", "母": "カア", "兄": "ニイ", "姉": "ネエ" };
+const FAMILY_AFTER = new Set(["さん", "ちゃん", "様", "さま"]);
+const NANI_BEFORE = new Set(["か", "も", "が", "を", "に", "から", "まで", "より", "や", "それ", "これ", "あれ", "一つ"]);
+const GAISHA_AFTER = new Set(["株式", "子", "親", "合同", "合資", "有限", "関連"]);
+
+/** The next / previous word that isn't whitespace. */
+const nextWord = (ws, i) => { for (let j = i + 1; j < ws.length; j++) if (ws[j].pos !== "whitespace") return ws[j]; return null; };
+const prevWord = (ws, i) => { for (let j = i - 1; j >= 0; j--) if (ws[j].pos !== "whitespace") return ws[j]; return null; };
+
+function fixWord(ws, i) {
+  const w = ws[i];
+  const next = nextWord(ws, i), prev = prevWord(ws, i);
+  if (w.surface === "私" && next?.surface === "ども") return null; // 私ども: humble, わたくし is right
+  if (WORDS[w.surface] && w.reading) return WORDS[w.surface];
+  // 言う: Sudachi says ゆう (言う, と言う); 言っ / 言わ are already いっ / いわ
+  if (w.dictionaryForm === "言う" && w.reading.startsWith("ユ")) return `イ${w.reading.slice(1)}`;
+  // (お)父さん, 母ちゃん, 兄さん, 姉様...
+  if (FAMILY[w.surface] && next && FAMILY_AFTER.has(next.surface)) return FAMILY[w.surface];
+  // 何か, 何も, 何が: なに (なん stays before counters and in 何で, 何の, 何だ)
+  if (w.surface === "何" && w.reading === "ナン" && next && NANI_BEFORE.has(next.surface)) return "ナニ";
+  // 日本人, 外国人, アメリカ人: じん after a place
+  if (w.surface === "人" && w.reading === "ニン" && prev && (prev.posDetail[2] === "地名" || prev.surface === "外国" || prev.surface === "日本")) return "ジン";
+  // 株式会社, 子会社
+  if (w.surface === "会社" && prev && GAISHA_AFTER.has(prev.surface)) return "ガイシャ";
+  // 誕生日
+  if (w.surface === "日" && prev?.surface === "誕生") return "ビ";
+  // 気に入る: いる, not はいる
+  if (w.dictionaryForm === "入る" && w.reading.startsWith("ハイ") && prev?.surface === "に" && prevWord(ws, ws.indexOf(prev))?.surface === "気") return w.reading.slice(1);
+  // 一日 / 1日: ついたち only after a month (4月1日), else いちにち (一日中, 1日に3回)
+  if (/^[1１一]日$/.test(w.surface) && w.reading === "ツイタチ" && prev?.surface !== "月") return "イチニチ";
+  return null;
+}
+
+// ------------------------------------------------------------------------------------------------ numbers
+
+const ONES = ["", "イチ", "ニ", "サン", "ヨン", "ゴ", "ロク", "ナナ", "ハチ", "キュウ"];
+const DIGIT_SPOKEN = ["ゼロ", "イチ", "ニ", "サン", "ヨン", "ゴ", "ロク", "ナナ", "ハチ", "キュウ"];
+const KANJI_DIGIT = { "〇": 0, "零": 0, "一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9 };
+const KANJI_SMALL = { "十": 10, "百": 100, "千": 1000 };
+const KANJI_BIG = { "万": 1e4, "億": 1e8, "兆": 1e12 };
+const isDigitText = (s) => /^[0-9０-９]+$/.test(s);
+const isNumeralWord = (w) => w.tags.includes("numeral") && w.surface !== "何" && /^[0-9０-９〇零一二三四五六七八九十百千万億兆]+$/.test(w.surface);
+const halfWidth = (s) => s.replace(/[０-９．，]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
+
+/** Value of a number written with digits and/or kanji numerals ("10", "三十五", "二〇二六", "3万"); null if unsure. */
+export function parseNumber(s) {
+  s = halfWidth(s).replace(/,/g, "");
+  if (/^[0-9]+$/.test(s)) return Number(s);
+  if (/^[〇零一二三四五六七八九]+$/.test(s) && s.length > 1) {
+    // 二〇二六 is a year; 二三 is "two or three"
+    return /[〇零]/.test(s) ? Number([...s].map((c) => KANJI_DIGIT[c]).join("")) : null;
+  }
+  let total = 0, section = 0, buf = null;
+  for (const c of s) {
+    if (/[0-9]/.test(c)) buf = (buf ?? 0) * 10 + Number(c);
+    else if (c in KANJI_DIGIT) buf = (buf ?? 0) * 10 + KANJI_DIGIT[c];
+    else if (c in KANJI_SMALL) { section += (buf ?? 1) * KANJI_SMALL[c]; buf = null; }
+    else if (c in KANJI_BIG) { total += (section + (buf ?? 0) || 1) * KANJI_BIG[c]; section = 0; buf = null; }
+    else return null;
+  }
+  const n = total + section + (buf ?? 0);
+  return Number.isSafeInteger(n) ? n : null;
+}
+
+/** 0–9999 as spoken pieces: 3608 → ["サンゼン", "ロッピャク", "ハチ"]. */
+function smallPieces(n) {
+  const out = [];
+  const [th, hu, te, on] = [Math.floor(n / 1000), Math.floor(n / 100) % 10, Math.floor(n / 10) % 10, n % 10];
+  if (th) out.push({ 1: "セン", 3: "サンゼン", 8: "ハッセン" }[th] ?? `${ONES[th]}セン`);
+  if (hu) out.push({ 1: "ヒャク", 3: "サンビャク", 6: "ロッピャク", 8: "ハッピャク" }[hu] ?? `${ONES[hu]}ヒャク`);
+  if (te) out.push(te === 1 ? "ジュウ" : `${ONES[te]}ジュウ`);
+  if (on) out.push(ONES[on]);
+  return out;
+}
+
+/** A whole number as spoken pieces; the last piece is the one counters change. 0 → ["ゼロ"]. */
+export function numberPieces(n) {
+  if (n === 0) return ["ゼロ"];
+  const out = [];
+  for (const [unit, name] of [[1e12, "チョウ"], [1e8, "オク"], [1e4, "マン"]]) {
+    const k = Math.floor(n / unit) % 1e4;
+    if (k) out.push(...smallPieces(k), name);
+  }
+  out.push(...smallPieces(n % 1e4));
+  if (out[0] === "イチ" && out[1] === "チョウ") out[0] = "イッ";
+  return out;
+}
+
+// Counters and the sound changes they cause. gem: the number's last piece is cut short (イチ → イッ) for these
+// last pieces; h: how the counter's own ハ-row sound changes (p after a cut-short number, and after ン if "p" / "b").
+const GEM_KST = ["イチ", "ハチ", "ジュウ"];               // 1, 8, 10: いっさい, はっさつ, じゅっこ
+const GEM_K = [...GEM_KST, "ロク", "ヒャク"];               // + 6, 100 before か-row: ろっかい, ひゃっこ
+const COUNTERS = {
+  // か-row
+  "回": { gem: GEM_K }, "個": { gem: GEM_K }, "階": { gem: GEM_K, afterN: "ガイ" }, "課": { gem: GEM_K },
+  "ヶ月": { gem: GEM_K }, "か月": { gem: GEM_K }, "カ月": { gem: GEM_K }, "ケ月": { gem: GEM_K }, "箇月": { gem: GEM_K },
+  "曲": { gem: GEM_K }, "件": { gem: GEM_K }, "軒": { gem: GEM_K, afterN: "ゲン" }, "校": { gem: GEM_K },
+  // さ / た-row
+  "歳": { gem: GEM_KST }, "才": { gem: GEM_KST }, "冊": { gem: GEM_KST }, "週": { gem: GEM_KST }, "週間": { gem: GEM_KST },
+  "通": { gem: GEM_KST }, "着": { gem: GEM_KST }, "頭": { gem: GEM_KST }, "点": { gem: GEM_KST }, "足": { gem: GEM_KST },
+  // は-row: いっぽん, さんぼん, よんほん; いっぷん, さんぷん, よんぷん
+  "本": { gem: GEM_K, h: "b" }, "杯": { gem: GEM_K, h: "b" }, "匹": { gem: GEM_K, h: "b" },
+  "分": { gem: GEM_K, h: "p", pAfterYon: true }, "泊": { gem: GEM_K, h: "p" }, "発": { gem: GEM_K, h: "p" },
+  "歩": { gem: GEM_K, h: "p" }, "票": { gem: GEM_K, h: "p" }, "品": { gem: GEM_K, h: "p" },
+  // no sound change, but よ / し / く for 4, 7, 9
+  "時": { four: "ヨ", seven: "シチ", nine: "ク" }, "時間": { four: "ヨ" }, "年": { four: "ヨ" }, "円": { four: "ヨ" },
+  "月": { four: "シ", seven: "シチ", nine: "ク" }, "人": { four: "ヨ" },
+};
+const BASE = { "回": "カイ", "個": "コ", "階": "カイ", "課": "カ", "ヶ月": "カゲツ", "か月": "カゲツ", "カ月": "カゲツ", "ケ月": "カゲツ",
+  "箇月": "カゲツ", "曲": "キョク", "件": "ケン", "軒": "ケン", "校": "コウ", "歳": "サイ", "才": "サイ", "冊": "サツ", "週": "シュウ",
+  "週間": "シュウカン", "通": "ツウ", "着": "チャク", "頭": "トウ", "点": "テン", "足": "ソク", "本": "ホン", "杯": "ハイ", "匹": "ヒキ",
+  "分": "フン", "泊": "ハク", "発": "ハツ", "歩": "ホ", "票": "ヒョウ", "品": "ヒン", "時": "ジ", "時間": "ジカン", "年": "ネン",
+  "円": "エン", "月": "ガツ", "人": "ニン" };
+const H_TO = { b: { "ハ": "バ", "ヒ": "ビ", "フ": "ブ", "ヘ": "ベ", "ホ": "ボ" }, p: { "ハ": "パ", "ヒ": "ピ", "フ": "プ", "ヘ": "ペ", "ホ": "ポ" } };
+
+// Whole words: number + counter read as one (they become one word, so furigana spans both)
+const DAYS = { 1: "ツイタチ", 2: "フツカ", 3: "ミッカ", 4: "ヨッカ", 5: "イツカ", 6: "ムイカ", 7: "ナノカ", 8: "ヨウカ", 9: "ココノカ", 10: "トオカ", 14: "ジュウヨッカ", 20: "ハツカ", 24: "ニジュウヨッカ" };
+const TSU = { 1: "ヒトツ", 2: "フタツ", 3: "ミッツ", 4: "ヨッツ", 5: "イツツ", 6: "ムッツ", 7: "ナナツ", 8: "ヤッツ", 9: "ココノツ" };
+const PEOPLE = { 1: "ヒトリ", 2: "フタリ" };
+
+const CUT = { "イチ": "イッ", "ロク": "ロッ", "ハチ": "ハッ", "ジュウ": "ジュッ", "ヒャク": "ヒャッ" };
+
+/**
+ * Readings for a number (pieces from numberPieces, or ["ナン"] for 何) followed by a counter.
+ * @returns {{ number: string, counter: string } | { whole: string } | null}  null: no rule for this counter
+ */
+export function countReading(n, pieces, counter, { afterMonth = false } = {}) {
+  if (counter === "日" && n != null) {
+    if (n === 1 && !afterMonth) return { number: "イチ", counter: "ニチ" };
+    if (DAYS[n]) return { whole: DAYS[n] };
+    return { number: pieces.join(""), counter: "ニチ" };
+  }
+  if (counter === "つ" && TSU[n]) return { whole: TSU[n] };
+  if (counter === "人" && PEOPLE[n]) return { whole: PEOPLE[n] };
+  if ((counter === "歳" || counter === "才") && n === 20) return { whole: "ハタチ" };
+  const rule = COUNTERS[counter];
+  if (!rule) return null;
+  const head = pieces.slice(0, -1).join("");
+  let last = pieces.at(-1);
+  let reading = BASE[counter];
+  const ones = n != null && n % 10 !== 0 && pieces.at(-1) === ONES[n % 10];
+  if (ones && n % 10 === 4 && rule.four) last = rule.four;
+  if (ones && n % 10 === 7 && rule.seven) last = rule.seven;
+  if (ones && n % 10 === 9 && rule.nine) last = rule.nine;
+  const cut = rule.gem && CUT[Object.keys(CUT).find((k) => last.endsWith(k) && rule.gem.includes(k))];
+  if (cut) {
+    last = last.slice(0, last.length - (Object.keys(CUT).find((k) => last.endsWith(k))).length) + cut;
+    if (rule.h) reading = (H_TO.p[reading[0]] ?? reading[0]) + reading.slice(1);
+  } else if (last.endsWith("ン")) {
+    const yon = last.endsWith("ヨン");
+    if (rule.h === "b" && !yon) reading = H_TO.b[reading[0]] + reading.slice(1);
+    if (rule.h === "p" && (!yon || rule.pAfterYon)) reading = H_TO.p[reading[0]] + reading.slice(1);
+    if (rule.afterN && !yon) reading = rule.afterN;
+  }
+  return { number: head + last, counter: reading };
+}
+
+/** Joins words [i, j) into one word with the given reading. */
+function merged(ws, i, j, reading) {
+  const first = ws[i], last = ws[j - 1];
+  return { ...first, surface: ws.slice(i, j).map((w) => w.surface).join(""), reading, dictionaryForm: ws.slice(i, j).map((w) => w.dictionaryForm).join(""),
+    normalizedForm: ws.slice(i, j).map((w) => w.normalizedForm).join(""), end: last.end };
+}
+
+/** Merge number runs into one word each, with whole-number readings and counter sound changes. */
+function fixNumbers(ws) {
+  const out = [];
+  for (let i = 0; i < ws.length; i++) {
+    const w = ws[i];
+    const isNan = w.surface === "何" && w.reading === "ナン";
+    if (!isNumeralWord(w) && !isNan) { out.push(w); continue; }
+
+    // the run: numerals, plus 1,000 commas and one decimal point between digits
+    let j = i + 1, decimal = -1;
+    if (!isNan) {
+      while (j < ws.length) {
+        const s = ws[j].surface;
+        if (isNumeralWord(ws[j])) { j++; continue; }
+        const between = isDigitText(ws[j - 1].surface) && ws[j + 1] && isDigitText(ws[j + 1].surface);
+        if (between && /^[,，]$/.test(s)) { j++; continue; }
+        if (between && /^[.．]$/.test(s) && decimal < 0) { decimal = j; j++; continue; }
+        break;
+      }
+    }
+    const runText = ws.slice(i, j).map((x) => x.surface).join("");
+    if (/[,，]/.test(runText) && !/^[0-9０-９]{1,3}([,，][0-9０-９]{3})+([.．][0-9０-９]+)?$/.test(runText)) {
+      // not a 1,000-style number: only the part before the first comma
+      j = i + ws.slice(i, j).findIndex((x) => /^[,，]$/.test(x.surface));
+      decimal = decimal >= j ? -1 : decimal;
+    }
+    const intEnd = decimal >= 0 ? decimal : j;
+    const n = isNan ? null : parseNumber(ws.slice(i, intEnd).map((x) => x.surface).join(""));
+    if (!isNan && n == null) { out.push(...ws.slice(i, j)); i = j - 1; continue; }
+    let pieces = isNan ? ["ナン"] : numberPieces(n);
+    const intText = halfWidth(ws.slice(i, intEnd).map((x) => x.surface).join("")).replace(/,/g, "");
+    if (/^0[0-9]+$/.test(intText)) pieces = [[...intText].map((d) => DIGIT_SPOKEN[d]).join("")]; // 007: digit by digit
+    if (decimal >= 0) {
+      const frac = halfWidth(ws.slice(decimal + 1, j).map((x) => x.surface).join(""));
+      pieces = [...pieces.slice(0, -1), pieces.at(-1) + "テン" + [...frac].map((d) => DIGIT_SPOKEN[d]).join("")];
+    }
+
+    const counter = ws[j];
+    const hasRule = counter && decimal < 0 && (counter.tags.includes("counter") || counter.pos === "suffix") && countReading(n, pieces, counter.surface);
+    // one kanji numeral on its own (零, 億, 十): Sudachi's reading fits better than a computed one
+    if (j - i === 1 && !isDigitText(w.surface) && !hasRule) { out.push(w); continue; }
+    const prev = out.at(-1);
+    const rule = counter && decimal < 0 && (counter.tags.includes("counter") || counter.pos === "suffix")
+      ? countReading(isNan ? null : n, pieces, counter.surface, { afterMonth: prev?.surface.endsWith("月") })
+      : null;
+    if (rule?.whole) { out.push({ ...merged(ws, i, j + 1, rule.whole), pos: "noun", tags: ["numeral", "counter"] }); i = j; continue; }
+    out.push(j - i > 1 || !isNan ? { ...merged(ws, i, j, rule ? rule.number : pieces.join("")), pos: "noun" } : { ...w, reading: rule ? rule.number : w.reading });
+    if (rule) { out.push({ ...counter, reading: rule.counter }); i = j; } else i = j - 1;
+  }
+  return out;
+}
+
+// ------------------------------------------------------------------------------------------------ apply
+
+/** The app's own readings: keys matched against whole words (or runs of words, which become one). */
+function applyOwn(ws, own) {
+  const keys = Object.keys(own).sort((a, b) => b.length - a.length);
+  if (!keys.length) return ws;
+  const out = [];
+  for (let i = 0; i < ws.length; i++) {
+    let hit = null;
+    for (const k of keys) {
+      if (!k.startsWith(ws[i].surface)) continue;
+      let s = "", j = i;
+      while (j < ws.length && s.length < k.length) s += ws[j++].surface;
+      if (s === k) { hit = { j, reading: toKatakana(own[k]) }; break; }
+    }
+    if (!hit) { out.push(ws[i]); continue; }
+    out.push(hit.j - i === 1 ? { ...ws[i], reading: hit.reading } : merged(ws, i, hit.j, hit.reading));
+    i = hit.j - 1;
+  }
+  return out;
+}
+
+/**
+ * @param {object[]} words  analyze() results for one text
+ * @param {{ everydayReadings?: boolean, readings?: Record<string, string> }} o
+ */
+export function fixReadings(words, { everydayReadings = true, readings = {} } = {}) {
+  let ws = words;
+  if (everydayReadings) {
+    ws = fixNumbers(ws);
+    ws = ws.map((w, i) => { const r = fixWord(ws, i); return r == null ? w : { ...w, reading: r }; });
+  }
+  return applyOwn(ws, readings);
+}

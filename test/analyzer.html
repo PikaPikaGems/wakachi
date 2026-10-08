@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wakachi Test Page</title>
+<style>
+  :root { --bg: #fff; --fg: #1a1a1a; --muted: #666; --line: #ddd; --ok: #15803d; --bad: #b91c1c; --btn: #f4f4f5; --code: #f4f4f5; --ruby: #6b7280; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #111; --fg: #eee; --muted: #999; --line: #333; --ok: #4ade80; --bad: #f87171; --btn: #222; --code: #1c1c1f; --ruby: #9ca3af; } }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font: 16px/1.5 -apple-system, system-ui, sans-serif; margin: 0 auto; padding: 16px; max-width: 720px; }
+  h1 { font-size: 20px; margin: 0 0 4px; } h2 { font-size: 16px; margin: 20px 0 8px; }
+  p, small { color: var(--muted); }
+  button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--btn); color: var(--fg); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+  textarea { width: 100%; min-height: 110px; font: inherit; padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+  .setting { margin: 10px 0; }
+  .hint { display: block; color: var(--muted); font-size: 13px; line-height: 1.4; margin-top: 2px; }
+  progress { width: 100%; }
+  #out { padding: 8px; border: 1px solid var(--line); border-radius: 8px; min-height: 2em; font-size: 20px; line-height: 2.2; white-space: pre-wrap; }
+  rt { color: var(--ruby); font-size: 11px; }
+  table { border-collapse: collapse; font-size: 13px; width: 100%; } td, th { border-bottom: 1px solid var(--line); padding: 2px 6px; text-align: left; }
+  #words { max-height: 260px; overflow: auto; display: block; }
+  pre { background: var(--code); border-radius: 6px; padding: 8px; white-space: pre-wrap; font-size: 13px; max-height: 240px; overflow: auto; }
+  .ok { color: var(--ok); } .bad { color: var(--bad); }
+</style>
+</head>
+<body>
+<h1>wakachi test page</h1>
+<p>Status: <b id="status">…</b> <span id="size"></span></p>
+<div id="loading" hidden><progress id="progress" max="1" value="0"></progress><div><b id="stage"></b> <small id="step"></small></div></div>
+<div class="row">
+  <button id="load">Load dictionary</button>
+  <button id="unload">Unload</button>
+  <button id="clear">Delete files from device</button>
+</div>
+
+<h2>Furigana</h2>
+<textarea id="text">私は明日、日本へ行きます。お母さんと一緒に10月4日から一週間、東京で3本の映画を見ました。何か食べたい？1,000円です。</textarea>
+<div class="setting"><label><input type="checkbox" id="everyday" checked> everydayReadings</label>
+  <small class="hint">On (the default): wakachi corrects readings Sudachi gets formal or wrong for everyday text: 私 わたくし → わたし,
+    明日 あす → あした, 日本 にっぽん → にほん, お母さん, 言う いう, and numbers (10月 じゅうがつ instead of いちれいがつ, 一回 いっかい,
+    3本 さんぼん, 4日 よっか). Off: Sudachi's own readings, unchanged.</small></div>
+<div class="setting"><label>readings <input id="own" placeholder='{"私": "わたくし"}' style="width:60%"></label>
+  <small class="hint">Your own fixes, as JSON: word → reading (hiragana or katakana). Applied last, so they win. A word Sudachi splits in
+    two (お母さん) can still be fixed; it becomes one word.</small></div>
+<div class="row"><button id="go">Analyze</button> <small id="took"></small></div>
+<div id="out"></div>
+<table id="words"></table>
+
+<h2>Checks</h2>
+<p>Runs automatic checks (loads the dictionary first if needed).</p>
+<div class="row"><button id="run">Run checks</button> <b id="summary"></b></div>
+<ol id="results"></ol>
+
+<h2>Log</h2>
+<pre id="log"></pre>
+
+<script type="module">
+import { createAnalyzer, AnalyzerError, VERSION } from "../dist/wakachi.js";
+import { groupBunsetsu, posLabel } from "../dist/text.js";
+
+const $ = (id) => document.getElementById(id);
+const log = (m) => { $("log").textContent += `${new Date().toLocaleTimeString()} ${m}\n`; $("log").scrollTop = 1e9; };
+window.onerror = (m) => log(`page error: ${m}`);
+window.onunhandledrejection = (e) => log(`unhandled: ${e.reason?.message ?? e.reason}`);
+const FILES = new URL("./files/", location.href).href;
+const make = (o = {}) => createAnalyzer({ filesUrl: FILES, ...o });
+
+const analyzer = make();
+window.analyzer = analyzer;
+analyzer.on("status", (s) => { $("status").textContent = s; log(`status: ${s}`); });
+const MB = (n) => (n / 1e6).toFixed(1);
+analyzer.on("progress", (p) => {
+  $("loading").hidden = false;
+  $("progress").value = p.fraction;
+  $("stage").textContent = p.stage === "downloading" ? `Downloading dictionary… ${MB(p.loaded)} / ${MB(p.total)} MB`
+    : p.stage === "preparing" ? `Preparing dictionary… ${Math.round(p.fraction * 100)}%` : "Ready";
+  $("step").textContent = `${p.step}${p.file ? ` · ${p.file}` : ""}${p.parts > 1 ? ` part ${p.part}/${p.parts}` : ""} · ${(p.ms / 1000).toFixed(2)} s`;
+});
+analyzer.on("log", (m) => log(`worker: ${m}`));
+$("status").textContent = analyzer.status;
+log(`wakachi ${VERSION}; ${navigator.userAgent}`);
+analyzer.info().then(({ cached, downloadMB }) => { $("size").textContent = cached ? "(files on this device)" : `(download ${downloadMB} MB)`; });
+
+async function load(a = analyzer) {
+  const t0 = performance.now();
+  const { fromCache, timings } = await a.load();
+  log(`loaded in ${((performance.now() - t0) / 1000).toFixed(1)} s (${fromCache ? "from this device" : "downloaded"})`);
+  if (timings) {
+    const rows = [...timings].sort((x, y) => y.ms - x.ms).slice(0, 8);
+    log(`slowest steps:\n${rows.map((t) => `  ${String(t.ms).padStart(6)} ms  ${t.step}${t.file ? ` ${t.file}` : ""}${t.part ? ` part ${t.part}` : ""}`).join("\n")}`);
+  }
+  $("size").textContent = "(files on this device)";
+}
+$("load").onclick = () => load().catch((e) => log(`load failed: ${e.code ?? e.name}: ${e.message}`));
+$("unload").onclick = () => analyzer.unload();
+$("clear").onclick = async () => { await analyzer.clearCache(); log("files deleted from this device"); analyzer.info().then(({ downloadMB }) => { $("size").textContent = `(download ${downloadMB} MB)`; }); };
+
+const esc = (s) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+$("go").onclick = async () => {
+  try {
+    let own = {};
+    if ($("own").value.trim()) own = JSON.parse($("own").value);
+    const a = make({ everydayReadings: $("everyday").checked, readings: own });
+    if (analyzer.status === "not-loaded") await load();
+    await a.load();
+    const t0 = performance.now();
+    const [ruby, words] = await Promise.all([a.furigana($("text").value), a.analyze($("text").value)]);
+    $("took").textContent = `${Math.round(performance.now() - t0)} ms`;
+    $("out").innerHTML = ruby.map((s) => s.reading ? `<ruby>${esc(s.text)}<rt>${esc(s.reading)}</rt></ruby>` : esc(s.text)).join("");
+    const groups = groupBunsetsu(words);
+    $("words").innerHTML = "<tr><th>word</th><th>reading</th><th>dictionary form</th><th>pos</th><th>bunsetsu</th></tr>"
+      + words.filter((w) => w.pos !== "whitespace").map((w) => `<tr><td>${esc(w.surface)}</td><td>${esc(w.reading)}</td><td>${esc(w.dictionaryForm)}</td><td>${w.pos}${w.tags.length ? ` (${w.tags})` : ""}<br><small>${esc(posLabel(w))}</small></td><td>${groups.findIndex((g) => g.morphemes.includes(w)) + 1}</td></tr>`).join("");
+    a.dispose();
+  } catch (e) { log(`analyze failed: ${e.code ?? e.name}: ${e.message}`); }
+};
+
+// ------------------------------------------------------------------------------------------------ checks
+const results = [];
+window.__results = results;
+async function t(name, fn) {
+  const li = document.createElement("li");
+  li.textContent = `${name} …`;
+  $("results").append(li);
+  const t0 = performance.now();
+  try {
+    await fn();
+    li.innerHTML = `<span class="ok">PASS</span> ${esc(name)} <small>(${Math.round(performance.now() - t0)} ms)</small>`;
+    results.push({ name, ok: true });
+  } catch (e) {
+    li.innerHTML = `<span class="bad">FAIL</span> ${esc(name)}<pre>${esc(String(e?.stack ?? e))}</pre>`;
+    results.push({ name, ok: false, error: String(e?.message ?? e) });
+  }
+}
+const assert = (c, m) => { if (!c) throw new Error(m); };
+const eq = (a, b, m) => assert(a === b, `${m}: expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`);
+const rejects = async (p, check) => { try { await p; } catch (e) { check(e); return; } throw new Error("expected a rejection"); };
+function covers(text, words) {
+  eq(words.map((w) => w.surface).join(""), text, "surfaces join to the input");
+  let pos = 0;
+  for (const w of words) { eq(w.start, pos, `start of ${w.surface}`); eq(text.slice(w.start, w.end), w.surface, "slice"); pos = w.end; }
+}
+const hira = (s) => s.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+const longText = "吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。\n".repeat(1800); // ~63,000 characters
+
+$("run").onclick = async () => {
+  $("run").disabled = true;
+  $("results").textContent = "";
+  results.length = 0;
+  const a = make();
+
+  await t("before load(): analyze rejects with not-loaded; info() reads the manifest", async () => {
+    const fresh = make();
+    if (fresh.status === "not-loaded") await rejects(fresh.analyze("猫"), (e) => { eq(e.code, "not-loaded", "code"); assert(e instanceof AnalyzerError, "AnalyzerError"); });
+    const { downloadMB } = await fresh.info();
+    assert(downloadMB > 30 && downloadMB < 60, `download ${downloadMB} MB`);
+  });
+
+  await t("load(): progress goes forward to ready", async () => {
+    const seen = [];
+    const off = a.on("progress", (p) => seen.push(p));
+    await a.load();
+    off();
+    eq(a.status, "ready", "status");
+    for (let i = 1; i < seen.length; i++) assert(seen[i].fraction >= seen[i - 1].fraction, "fraction never goes back");
+    if (seen.length) eq(seen.at(-1).stage, "ready", "last stage");
+  });
+
+  await t("analyze(): fields, pos, tags, positions", async () => {
+    const text = "東京で5分「走った」。";
+    const w = await a.analyze(text);
+    covers(text, w);
+    const run = w.find((x) => x.surface === "走っ");
+    eq(run.dictionaryForm, "走る", "dictionary form");
+    eq(run.pos, "verb", "pos");
+    assert(w.find((x) => x.surface === "東京").tags.includes("proper"), "proper tag");
+  });
+
+  await t("everyday readings: 私 明日 日本 numbers", async () => {
+    const w = await a.analyze("私は明日日本に行く。10月4日に3本。");
+    eq(hira(w.map((x) => x.reading).join("")), "わたしはあしたにほんにいくじゅうがつよっかにさんぼん", "reading");
+  });
+
+  await t("furigana(): readings on kanji only, text joins back", async () => {
+    const text = "食べた後で、お母さんと話す。";
+    const r = await a.furigana(text);
+    eq(r.map((s) => s.text).join(""), text, "joined");
+    eq(JSON.stringify(r.slice(0, 2)), JSON.stringify([{ text: "食", reading: "た" }, { text: "べた" }]), "okurigana");
+    assert(r.some((s) => s.text === "母" && s.reading === "かあ"), "お母さん");
+  });
+
+  await t("readings option and everydayReadings: false (per analyzer, same Sudachi)", async () => {
+    const own = make({ readings: { "私": "わたくし" } });
+    const raw = make({ everydayReadings: false });
+    await own.load(); await raw.load();
+    eq(hira((await own.analyze("私"))[0].reading), "わたくし", "own reading");
+    eq(hira((await raw.analyze("明日"))[0].reading), "あす", "Sudachi's reading");
+    own.dispose(); raw.dispose();
+    eq(a.status, "ready", "the first analyzer still has Sudachi");
+  });
+
+  await t("analyzeMany(): one result per text", async () => {
+    const texts = ["猫が好き。", "", "  ", "今日は晴れ。"];
+    const r = await a.analyzeMany(texts);
+    eq(r.length, 4, "results");
+    r.forEach((w, i) => covers(texts[i], w));
+  });
+
+  await t("long text (63,000 characters), URLs and emoji", async () => {
+    covers(longText, await a.analyze(longText));
+    const odd = "見て https://example.com/" + "abcdefghij".repeat(30) + " すごい😀😀";
+    covers(odd, await a.analyze(odd));
+  });
+
+  await t("cancelling: an aborted call rejects with AbortError, others continue", async () => {
+    const ctrl = new AbortController();
+    const p = a.analyze(longText, { signal: ctrl.signal });
+    ctrl.abort();
+    await rejects(p, (e) => eq(e.name, "AbortError", "name"));
+    covers("猫", await a.analyze("猫"));
+  });
+
+  await t("unload(): the next call reloads from the device", async () => {
+    a.unload();
+    eq(a.status, "stopped", "status");
+    covers("猫が好き", await a.analyze("猫が好き"));
+    eq(a.status, "ready", "status after");
+  });
+
+  await t("dispose(): pending calls reject with disposed", async () => {
+    const c = make();
+    await c.load();
+    const p = c.analyze(longText);
+    c.dispose();
+    await rejects(p, (e) => eq(e.code, "disposed", "code"));
+    eq(c.status, "not-loaded", "status");
+  });
+
+  await t("missing files: a clear error", async () => {
+    const m = createAnalyzer({ filesUrl: new URL("./missing/", location.href).href });
+    // the worker file or the manifest, whichever the browser asks for first
+    await rejects(m.load(), (e) => { assert(e instanceof AnalyzerError, "AnalyzerError"); assert(/copy-files|manifest/.test(e.message), e.message); log(`(expected) ${e.code}: ${e.message}`); });
+  });
+
+  const failed = results.filter((r) => !r.ok).length;
+  $("summary").textContent = failed ? `${failed} of ${results.length} failed` : `All ${results.length} passed`;
+  $("summary").className = failed ? "bad" : "ok";
+  $("run").disabled = false;
+  window.__done = true;
+};
+</script>
+</body>
+</html>

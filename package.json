@@ -1,0 +1,50 @@
+{
+  "name": "wakachi",
+  "version": "0.1.0",
+  "description": "Japanese furigana and word analysis in the browser (Sudachi), with everyday readings. Works on iPhone Safari.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "import": "./dist/wakachi.js",
+      "default": "./dist/wakachi.js"
+    },
+    "./text": {
+      "types": "./types/text.d.ts",
+      "import": "./dist/text.js",
+      "default": "./dist/text.js"
+    }
+  },
+  "types": "./types/index.d.ts",
+  "bin": {
+    "wakachi": "./bin/wakachi.mjs"
+  },
+  "files": [
+    "dist/",
+    "bin/",
+    "types/",
+    "API.md",
+    "NOTICE.md"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "files": "node scripts/make-files.mjs",
+    "test": "node --test test/*.test.mjs",
+    "test:types": "tsc -p test/types",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "kakera": "file:../kakera",
+    "typescript": "^5.9.0"
+  },
+  "keywords": [
+    "japanese",
+    "furigana",
+    "sudachi",
+    "morphological-analysis",
+    "tokenizer",
+    "browser"
+  ]
+}
