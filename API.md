@@ -40,7 +40,7 @@ Add the dictionary files to the project with one command, and run it automatical
 }
 ```
 
-- The files (42 MB to download) come from this version's GitHub release, are checked, and are cached on your computer
+- The files (44 MB to download) come from this version's GitHub release, are checked, and are cached on your computer
   (`~/.cache/wakachi`); after the first time the command only copies them. `--from <url or folder>` takes them from
   elsewhere.
 - They are split into parts of at most 20 MB, so they work on GitHub Pages and Cloudflare Pages (25 MiB per file).
@@ -299,7 +299,7 @@ The aim: **the page never freezes, the user never sees the same crash twice, and
   at once (status `unavailable`) instead of crashing again. Show the page without furigana.
   `analyzer.resetCrashGuard()` (e.g. behind a "Try again" button) clears it.
 - **Out of memory, checked before downloading.** Sudachi's memory is reserved before the dictionary is downloaded. If
-  the browser refuses, `load()` fails at once with `out-of-memory`, without a wasted 42 MB download.
+  the browser refuses, `load()` fails at once with `out-of-memory`, without a wasted 44 MB download.
 - **Timeouts measure time without progress**, so slow-but-working never times out. `loadStall` (60 s): no download or
   startup progress. `analyzeStall` (20 s): no piece of text (up to 8,000 characters, normally under a second)
   finished. Either way the worker is stopped and the call rejects with `timeout`; the next call starts fresh.

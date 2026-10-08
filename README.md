@@ -14,7 +14,7 @@ The API is in [API.md](API.md).
 import { createAnalyzer } from "wakachi";
 
 const analyzer = createAnalyzer();
-await analyzer.load();                                  // 42 MB the first time, then from the device
+await analyzer.load();                                  // 44 MB the first time, then from the device
 await analyzer.furigana("私は明日10月4日に行く");
 // → 私(わたし)は明日(あした)10(じゅう)月(がつ)4日(よっか)に行(い)く
 await analyzer.analyze("猫が好き。");                     // words with readings, dictionary forms, parts of speech
@@ -38,7 +38,7 @@ page:   dist/wakachi.js        createAnalyzer(): reading fixes, furigana
           │  (kakera: one worker per page, crash guard, timeouts, idle/hidden unloading)
 worker: wakachi-worker.js      Sudachi (wasm), safe input splitting, batching
           │  (kakera: parts downloaded once, checked, kept in IndexedDB)
-files:  manifest.json + parts  Sudachi's program (1 MB) and dictionary (116 MB, 42 MB to download)
+files:  manifest.json + parts  Sudachi's program (1 MB) and dictionary (116 MB, 44 MB to download)
 ```
 
 [kakera](https://github.com/PikaPikaGems/kakera) is the plumbing shared with
