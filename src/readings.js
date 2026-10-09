@@ -88,7 +88,11 @@ const KANJI_DIGIT = { "〇": 0, "零": 0, "一": 1, "二": 2, "三": 3, "四": 4
 const KANJI_SMALL = { "十": 10, "百": 100, "千": 1000 };
 const KANJI_BIG = { "万": 1e4, "億": 1e8, "兆": 1e12 };
 const isDigitText = (s) => /^[0-9０-９]+$/.test(s);
-const isNumeralWord = (w) => w.tags.includes("numeral") && w.surface !== "何" && /^[0-9０-９〇零一二三四五六七八九十百千万億兆]+$/.test(w.surface);
+// Sudachi gives digits as one word ("10", "1,000", "3.14") or (older builds) one word per digit
+const isNumeralWord = (w) => w.tags.includes("numeral") && w.surface !== "何"
+  && (/^[0-9０-９][0-9０-９,，.．]*$/.test(w.surface) || /^[〇零一二三四五六七八九十百千万億兆]+$/.test(w.surface));
+const D = "[0-9０-９]";
+const NUMBER_TEXT = new RegExp(`^(${D}{1,3}([,，]${D}{3})+|${D}+)([.．]${D}+)?$`); // 12, 1,000, 3.14, 1,234.5
 const halfWidth = (s) => s.replace(/[０-９．，]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
 
 /** Value of a number written with digits and/or kanji numerals ("10", "三十五", "二〇二六", "3万"); null if unsure. */
@@ -221,42 +225,37 @@ function fixNumbers(ws) {
     const isNan = w.surface === "何" && w.reading === "ナン";
     if (!isNumeralWord(w) && !isNan) { out.push(w); continue; }
 
-    // the run: numerals, plus 1,000 commas and one decimal point between digits
-    let j = i + 1, decimal = -1;
+    // the run: numerals, plus commas and a decimal point between digits when Sudachi gives them as separate words
+    let j = i + 1;
     if (!isNan) {
       while (j < ws.length) {
-        const s = ws[j].surface;
         if (isNumeralWord(ws[j])) { j++; continue; }
         const between = isDigitText(ws[j - 1].surface) && ws[j + 1] && isDigitText(ws[j + 1].surface);
-        if (between && /^[,，]$/.test(s)) { j++; continue; }
-        if (between && /^[.．]$/.test(s) && decimal < 0) { decimal = j; j++; continue; }
+        if (between && /^[,，.．]$/.test(ws[j].surface)) { j++; continue; }
         break;
       }
     }
     const runText = ws.slice(i, j).map((x) => x.surface).join("");
-    if (/[,，]/.test(runText) && !/^[0-9０-９]{1,3}([,，][0-9０-９]{3})+([.．][0-9０-９]+)?$/.test(runText)) {
-      // not a 1,000-style number: only the part before the first comma
-      j = i + ws.slice(i, j).findIndex((x) => /^[,，]$/.test(x.surface));
-      decimal = decimal >= j ? -1 : decimal;
+    const digits = /^[0-9０-９]/.test(runText);
+    if (digits && !NUMBER_TEXT.test(runText)) {
+      // not a number like 1,000 or 3.14 (e.g. a list 1,2,3): keep the words as Sudachi gave them
+      out.push(...ws.slice(i, j)); i = j - 1; continue;
     }
-    const intEnd = decimal >= 0 ? decimal : j;
+    const [intPart, frac] = digits ? halfWidth(runText).replace(/,/g, "").split(".") : [runText, undefined];
+    const decimal = frac === undefined ? -1 : 1;
     // 万年, 億万: a big unit with no number before it isn't いちまん
-    const n = isNan || /^[万億兆]/.test(w.surface) ? null : parseNumber(ws.slice(i, intEnd).map((x) => x.surface).join(""));
+    const n = isNan || /^[万億兆]/.test(w.surface) ? null : parseNumber(intPart);
     if (!isNan && n == null) { out.push(...ws.slice(i, j)); i = j - 1; continue; }
     let pieces = isNan ? ["ナン"] : numberPieces(n);
-    const intText = halfWidth(ws.slice(i, intEnd).map((x) => x.surface).join("")).replace(/,/g, "");
-    if (/^0[0-9]+$/.test(intText)) pieces = [[...intText].map((d) => DIGIT_SPOKEN[d]).join("")]; // 007: digit by digit
-    if (decimal >= 0) {
-      const frac = halfWidth(ws.slice(decimal + 1, j).map((x) => x.surface).join(""));
-      pieces = [...pieces.slice(0, -1), pieces.at(-1) + "テン" + [...frac].map((d) => DIGIT_SPOKEN[d]).join("")];
-    }
+    if (/^0[0-9]+$/.test(intPart)) pieces = [[...intPart].map((d) => DIGIT_SPOKEN[d]).join("")]; // 007: digit by digit
+    if (frac !== undefined) pieces = [...pieces.slice(0, -1), pieces.at(-1) + "テン" + [...frac].map((d) => DIGIT_SPOKEN[d]).join("")];
 
     let counter = ws[j];
     if (counter?.surface === "分" && ws[j + 1]?.surface === "の") counter = null; // 三分の一: a fraction, さんぶん
     if (n === 0 && decimal < 0 && counter?.tags.includes("counter")) pieces = ["レイ"]; // 零時, 0時: れいじ
     const hasRule = counter && decimal < 0 && (counter.tags.includes("counter") || counter.pos === "suffix") && countReading(n, pieces, counter.surface);
     // one kanji numeral on its own (零, 億, 十): Sudachi's reading fits better than a computed one
-    if (j - i === 1 && !isDigitText(w.surface) && !hasRule) { out.push(w); continue; }
+    if (j - i === 1 && !digits && !isNan && !hasRule) { out.push(w); continue; }
     const prev = out.at(-1);
     const rule = counter && decimal < 0 && (counter.tags.includes("counter") || counter.pos === "suffix")
       ? countReading(isNan ? null : n, pieces, counter.surface, { afterMonth: prev?.surface.endsWith("月"), afterDai: prev?.surface === "第" })

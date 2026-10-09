@@ -49,6 +49,7 @@ test("numbers: one word, whole-number readings", () => {
   assert.equal(read("3.14"), "3.14(さんてんいちよん)");
   assert.equal(read("１０時半"), "１０(じゅう) 時(じ) 半(はん)");
   assert.equal(read("007"), "007(ぜろぜろなな)");
+  assert.equal(read("1,2,3"), "1(いち) ,() 2(に) ,() 3(さん)".replace(/\(\)/g, "()"));
 });
 
 test("numbers: counter sound changes", () => {
@@ -75,7 +76,7 @@ test("positions still line up after merging", () => {
 
 test("everydayReadings: false leaves Sudachi's readings alone", () => {
   assert.equal(whole("私は明日", { everydayReadings: false }), "わたくしはあす");
-  assert.equal(read("10月", { everydayReadings: false }), "1(いち) 0(れい) 月(がつ)");
+  assert.equal(read("10月", { everydayReadings: false }), "10(いちれい) 月(がつ)");
 });
 
 test("the app's own readings win, and can span several words", () => {

@@ -3,7 +3,7 @@
 // bundlers never have to handle it.
 //
 // Files (from the manifest, in this order):
-//   sudachi.wasm   the program, with its dictionary taken out (1.1 MB). Instantiating it reserves Sudachi's memory
+//   sudachi.wasm   the program, with its dictionary taken out (1 MB). Instantiating it reserves Sudachi's memory
 //                  (~120 MB) BEFORE the dictionary is downloaded, so a browser that refuses the memory fails at once
 //                  with "out-of-memory" instead of after a 43 MB download.
 //   dict.bin       the dictionary: the program's data segments, one after the other. Streamed part by part straight
@@ -47,7 +47,7 @@ async function load(_msg, ctx) {
         case "sudachi.wasm": {
           const bytes = await collect(chunks, file.size);
           ctx.step("start-sudachi", { file: file.name });
-          memory = (await init(bytes)).memory;
+          memory = (await init({ module_or_path: bytes })).memory;
           write = segmentWriter(memory, manifest.meta.segments);
           break;
         }
@@ -62,7 +62,7 @@ async function load(_msg, ctx) {
   });
   if (!write) throw codedError("engine-failed", "the dictionary files are incomplete (run wakachi copy-files again)");
   ctx.step("warm-up");
-  analyzeText("今日は良い天気ですね。"); // Sudachi builds its lookup structures on the first call
+  analyzeText("今日は良い天気ですね。"); // Sudachi builds its dictionary structures on the first call (once)
   return { version: VERSION, memoryBytes: memory.buffer.byteLength };
 }
 

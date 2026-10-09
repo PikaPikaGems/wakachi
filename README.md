@@ -14,7 +14,7 @@ The API is in [API.md](API.md).
 import { createAnalyzer } from "wakachi";
 
 const analyzer = createAnalyzer();
-await analyzer.load();                                  // 44 MB the first time, then from the device
+await analyzer.load();                                  // 45 MB the first time, then from the device
 await analyzer.furigana("私は明日10月4日に行く");
 // → 私(わたし)は明日(あした)10(じゅう)月(がつ)4日(よっか)に行(い)く
 await analyzer.analyze("猫が好き。");                     // words with readings, dictionary forms, parts of speech
@@ -28,8 +28,8 @@ await analyzer.analyze("猫が好き。");                     // words with rea
   in your `public/` folder. No bundler setup, no dependencies to install.
 - **Phone protections:** loads only when you call `load()`, frees memory when idle or in the background, never
   crashes the same phone twice, times out instead of hanging, and keeps memory flat on long text.
-- **Speed:** many texts share one Sudachi call (this build costs ~100 ms per call), so `analyzeMany` of 100 lines
-  takes about as long as one.
+- **Fast Sudachi:** our own optimized build (GitHub Actions, `.github/workflows/build-sudachi.yml`) of the current
+  sudachi-wasm source: about 1 ms per sentence. The npm build (2021) rebuilt its dictionary on every call (~125 ms).
 
 ## How it fits together
 
@@ -38,7 +38,7 @@ page:   dist/wakachi.js        createAnalyzer(): reading fixes, furigana
           │  (kakera: one worker per page, crash guard, timeouts, idle/hidden unloading)
 worker: wakachi-worker.js      Sudachi (wasm), safe input splitting, batching
           │  (kakera: parts downloaded once, checked, kept in IndexedDB)
-files:  manifest.json + parts  Sudachi's program (1 MB) and dictionary (116 MB, 44 MB to download)
+files:  manifest.json + parts  Sudachi's program (1 MB) and dictionary (124 MB, 45 MB to download)
 ```
 
 [kakera](https://github.com/PikaPikaGems/kakera) is the plumbing shared with
@@ -54,7 +54,7 @@ src/readings.js     everyday readings and numbers; the app's own readings
 src/text.js         wakachi/text: furigana, bunsetsu, sentences, labels
 src/split-input.js  cutting long text at sentence ends
 src/pos.js          Sudachi's part-of-speech tags to pos/tags
-src/sudachi-glue.js wasm-bindgen glue from the npm Sudachi build
+src/sudachi-glue.js wasm-bindgen glue of the Sudachi build (scripts/sudachi-build.mjs names it)
 bin/wakachi.mjs     wakachi copy-files
 scripts/            build.mjs (dist/), make-files.mjs (files/), split-wasm.mjs
 types/              index.d.ts, text.d.ts
@@ -65,7 +65,7 @@ test/               Node tests; analyzer.html: try it + automatic checks in the 
 
 ```bash
 npm install                     # kakera is linked from ../kakera
-npm run files                   # files/ (downloads the npm Sudachi build once, into .cache/)
+npm run files                   # files/ (downloads our Sudachi build once, into .cache/)
 npm test                        # Node tests (need .cache/ from the line above)
 npm run test:types              # the TypeScript types
 npm run build                   # dist/

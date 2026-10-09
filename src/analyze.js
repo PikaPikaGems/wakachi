@@ -1,31 +1,12 @@
 // Turns Sudachi's raw output into Morpheme objects, safely. Kept apart from the worker so it can be tested in Node.
 //
-// The 2020 Sudachi build panics (a wasm trap) when one unknown word reaches 256 bytes of UTF-8: ~250 latin letters
-// (long URLs), 86 full-width letters, 64 emoji or rare kanji. Two layers keep that from losing a whole text:
-//   1. Long runs of non-Japanese characters get extra cut points every RUN_CUT characters (well under 256 bytes).
-//   2. If a piece still traps, it is split in half and retried, down to single tiny pieces.
-// Sudachi keeps working after a trap, but leaks that call's memory, so (1) is what normally prevents it.
+// The old npm build of Sudachi crashed (a wasm trap) on one unknown word of 256+ bytes (long URLs, emoji runs); the
+// build wakachi uses now doesn't. As a safety net, a piece that still traps is split in half and retried, down to
+// single tiny pieces, so one odd stretch never loses the whole text.
 import { splitInput, MAX_PIECE } from "./split-input.js";
 import { sudachiPos } from "./pos.js";
 
-const MODE_C = 2; // the 2020 build only returns results in mode C
-const RUN_CUT = 50; // characters (code points); 50 × 4 bytes = 200 bytes < 256
-
-// Characters Sudachi handles in any run length: kana, CJK ideographs (BMP), digits, Japanese punctuation, spaces.
-const SAFE = /[　-ヿ㐀-䶿一-鿿豈-﫿０-９｡-ﾟ0-9\s]/u;
-
-/** Cut points inside long runs of "unsafe" characters, as [text, text, ...] pieces. */
-export function cutLongRuns(text) {
-  const out = [];
-  let buf = "", run = 0;
-  for (const ch of text) {
-    run = SAFE.test(ch) ? 0 : run + 1;
-    if (run > RUN_CUT) { out.push(buf); buf = ""; run = 1; }
-    buf += ch;
-  }
-  out.push(buf);
-  return out.filter((s) => s.length > 0);
-}
+const MODE_C = 2; // the longest units (選挙管理委員会 as one word), as wakachi has always used
 
 /**
  * @param {(text: string, mode: number) => string} tokenize  the wasm-bindgen export
@@ -43,7 +24,7 @@ export function makeAnalyzeText(tokenize) {
       traps++;
       const cps = Array.from(text);
       if (cps.length <= 8) {
-        return [{ surface: text, poses: ["その他", "*", "*", "*", "*", "*"], dictionary_form: "", reading_form: text, normalized_form: text }];
+        return [{ surface: text, poses: ["その他", "*", "*", "*", "*", "*"], reading_form: "", dictionary_form: text, normalized_form: text }];
       }
       const half = cps.length >> 1;
       return [...raw(cps.slice(0, half).join("")), ...raw(cps.slice(half).join(""))];
@@ -65,17 +46,17 @@ export function makeAnalyzeText(tokenize) {
     }
     if (src.length <= 1) {
       const [first] = ms;
-      return [{ ...first, surface: text, dictionary_form: ms.map((m) => m.dictionary_form).join(""), reading_form: text, normalized_form: ms.map((m) => m.normalized_form).join("") }];
+      return [{ ...first, surface: text, reading_form: ms.map((m) => m.reading_form).join(""), dictionary_form: text, normalized_form: ms.map((m) => m.normalized_form).join("") }];
     }
     const half = src.length >> 1;
     return [...aligned(src.slice(0, half).join("")), ...aligned(src.slice(half).join(""))];
   }
 
   /**
-   * Words of many texts. Each call into this Sudachi build costs ~100 ms however short the text, so pieces (of all
-   * the texts) are sent together, joined by line breaks, in calls of at most MAX_PIECE characters (Sudachi's memory
-   * grows with the size of one call and never shrinks). Every character of a call is mapped back to its text and
-   * position; the joining line breaks are dropped.
+   * Words of many texts. Pieces (of all the texts) are sent to Sudachi together, joined by line breaks, in calls of
+   * at most MAX_PIECE characters (Sudachi's memory grows with the size of one call and never shrinks), which saves the
+   * round trips. Every character of a call is mapped back to its text and position; the joining line breaks are
+   * dropped.
    */
   function analyzeTexts(texts, alive = () => {}) {
     const results = texts.map(() => []);
@@ -83,8 +64,7 @@ export function makeAnalyzeText(tokenize) {
     const pieces = [];
     texts.forEach((text, k) => {
       for (const piece of splitInput(text)) {
-        let offset = piece.offset;
-        for (const part of cutLongRuns(piece.text)) { pieces.push([k, offset, part]); offset += part.length; }
+        pieces.push([k, piece.offset, piece.text]);
       }
     });
     let batch = [], size = 0;
@@ -125,10 +105,8 @@ export function makeAnalyzeText(tokenize) {
         const k = owner[i], start = pos[i], end = pos[j - 1] + 1;
         results[k].push({
           surface: joined.slice(i, j),
-          // The npm build swaps two JSON fields: `dictionary_form` holds the katakana reading and
-          // `reading_form` holds the dictionary form.
-          reading: m.dictionary_form,
-          dictionaryForm: m.reading_form,
+          reading: /[ァ-ヺ]/.test(m.reading_form) ? m.reading_form : "", // "" when there is none (Sudachi repeats symbols)
+          dictionaryForm: m.dictionary_form,
           normalizedForm: m.normalized_form,
           ...sudachiPos(m.poses),
           posDetail: m.poses,

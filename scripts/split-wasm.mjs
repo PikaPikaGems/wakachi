@@ -3,8 +3,10 @@
 // Sudachi's dictionary is compiled into the wasm as an active data segment (116 MB). Browsers keep a copy of every
 // data segment inside the compiled module for as long as the instance lives, on top of the copy in linear memory.
 // Removing the data section and writing the bytes into memory ourselves after instantiation avoids that second copy.
-// This is only safe when nothing runs at instantiation (no start section) and no code uses memory.init
-// (no DataCount section), both of which are checked here.
+// This is only safe when nothing runs at instantiation (no start section) and no code uses memory.init / data.drop
+// (which would read the removed segments). Both are checked: the start section directly; for memory.init, the
+// DataCount section (which recent Rust always emits) is removed too, and WebAssembly validation rejects any program
+// that uses memory.init or data.drop without one.
 
 const SECTION = { start: 8, data: 11, dataCount: 12 };
 
@@ -32,7 +34,7 @@ export function splitWasm(wasm) {
     const [size, bodyStart] = leb(wasm, i + 1);
     const end = bodyStart + size;
     if (id === SECTION.start) throw new Error("wasm has a start function; its data cannot be moved out safely");
-    if (id === SECTION.dataCount) throw new Error("wasm uses bulk memory (DataCount section); not supported");
+    if (id === SECTION.dataCount) { i = end; continue; } // dropped; see the validation below
     if (id === SECTION.data) {
       let [count, j] = leb(wasm, bodyStart);
       while (count--) {
@@ -54,5 +56,6 @@ export function splitWasm(wasm) {
   const code = new Uint8Array(kept.reduce((a, b) => a + b.length, 0));
   let o = 0;
   for (const k of kept) { code.set(k, o); o += k.length; }
+  if (!WebAssembly.validate(code)) throw new Error("the program does not validate without its data segments (it uses memory.init or data.drop); it cannot be split");
   return { code, segments };
 }

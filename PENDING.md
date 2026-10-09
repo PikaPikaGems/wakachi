@@ -2,16 +2,15 @@
 
 - [x] **Files on another host** (2026-10-09): `filesUrl` can be another site that sends CORS headers; kakera starts
       the worker through a small same-origin script. Tested with two local origins.
-- [ ] **Speed.** Each Sudachi call costs ~125 ms whatever its length; `analyzeMany` batches texts to hide it. Cause
-      (CPU profile, 2026-10-09): the npm build (sudachi@0.1.5, 2021, the latest on npm) rebuilds the tokenizer from
-      the dictionary bytes on every call (`Tokenizer::from_dictionary_bytes`: 98% of the time, mostly
-      `parse_trie_array`); the actual tokenizing is ~2%. It is also a debug build: the project's README builds with `wasm-pack build --dev`. hata6502/sudachi-wasm's
-      current source builds the dictionary once (thread_local), but there is no newer npm release: building it
-      ourselves (Rust + wasm-pack) would make each call a few ms.
+- [x] **Speed** (2026-10-09): the npm Sudachi build (2021) rebuilt its dictionary on every call (~125 ms) and was a debug
+      build. wakachi now uses its own optimized build of the current sudachi-wasm source with SudachiDict small
+      20260723 (`.github/workflows/build-sudachi.yml`, a pre-release named in scripts/sudachi-build.mjs): ~1 ms per
+      sentence, 63,000 characters in 0.25 s. To update Sudachi or the dictionary: run the workflow, change
+      sudachi-build.mjs, copy the new glue to src/sudachi-glue.js, `npm run files`, run the tests and the readings check.
 - [x] Demo site: https://pikapikagems.github.io/wakachi/ (`npm run publish:demo` updates it).
 - [ ] First GitHub release (v0.1.0) with `files/`: `copy-files` downloads from it by default.
 - [ ] `wakachi/react`: `useAnalysis(text)`, `<Furigana text>`; React as an optional peer dependency.
 - [ ] Test on a real iPhone (load, memory, speed).
 - [ ] CI: Node tests and the browser test page.
-- [ ] More reading fixes: 2,546 of jp-word-ranks-data's 37,608 kanji words still differ (most are single kanji out of
+- [ ] More reading fixes: 2,512 of jp-word-ranks-data's 37,608 kanji words still differ (most are single kanji out of
       context, or katakana words with no reading). Candidates: 今日は (こんにちは), 良い (いい), 体中 (からだじゅう).

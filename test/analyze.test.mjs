@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { test } from "node:test";
 import { splitInput, MAX_PIECE } from "../src/split-input.js";
-import { cutLongRuns, makeAnalyzeText } from "../src/analyze.js";
+import { makeAnalyzeText } from "../src/analyze.js";
 import { sudachi } from "./sudachi.js";
 
 const { glue, memory } = await sudachi("analyze");
@@ -35,15 +35,6 @@ test("splitInput: pieces join back, never split a surrogate pair, cut after sent
   for (const p of novel.slice(0, -1)) assert.match(p.text, /[。？」\n]$/);
 });
 
-test("cutLongRuns: cuts only long non-Japanese runs", () => {
-  assert.deepEqual(cutLongRuns("猫が好き"), ["猫が好き"]);
-  assert.equal(cutLongRuns("あ".repeat(500)).length, 1);
-  const url = "見て https://example.com/" + "abcdefghij".repeat(30) + " すごい";
-  const parts = cutLongRuns(url);
-  assert.equal(parts.join(""), url);
-  assert.ok(parts.length > 1 && parts.every((p) => Array.from(p).length <= 60));
-});
-
 test("analyze: fields, engine-neutral pos/tags, offsets", () => {
   const text = "東京で5分「走った」。";
   const m = analyzeText(text);
@@ -66,14 +57,14 @@ test("analyze: whitespace and line breaks come back as whitespace morphemes", ()
   assert.ok(m.filter((x) => /^\s+$/.test(x.surface) && x.surface !== "　").every((x) => x.pos === "whitespace"));
 });
 
-test("analyze: long URLs, emoji runs and latin runs no longer crash Sudachi", () => {
+test("analyze: long URLs, emoji runs and latin runs don't crash Sudachi", () => {
   const before = analyzeText.traps();
   for (const text of [
     "見て https://example.com/" + "abcdefghij".repeat(30) + " すごい",
     "最高" + "😀".repeat(200) + "！",
     "w".repeat(1000), "ｗ".repeat(300), "𠮷".repeat(500),
   ]) assertCovers(text, analyzeText(text));
-  assert.equal(analyzeText.traps(), before, "prevention should avoid every trap");
+  assert.equal(analyzeText.traps(), before, "no Sudachi crash");
 });
 
 test("analyze: surfaces are the original characters even where Sudachi rewrites them", () => {

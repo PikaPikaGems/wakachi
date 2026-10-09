@@ -40,7 +40,7 @@ Add the dictionary files to the project with one command, and run it automatical
 }
 ```
 
-- The files (44 MB to download) come from this version's GitHub release, are checked, and are cached on your computer
+- The files (45 MB to download) come from this version's GitHub release, are checked, and are cached on your computer
   (`~/.cache/wakachi`); after the first time the command only copies them. `--from <url or folder>` takes them from
   elsewhere.
 - They are split into parts of at most 20 MB, so they work on GitHub Pages and Cloudflare Pages (25 MiB per file).
@@ -71,7 +71,7 @@ Creating it **does nothing**: no download, no worker, no memory. Options, all op
 
 After an idle or background stop, the next call reloads from the device (about 0.5–2 s, no download). Nothing to do.
 
-**One Sudachi per page.** It uses ~150 MB, so every analyzer on the page shares the same one. Create analyzers
+**One Sudachi per page.** It uses ~135 MB, so every analyzer on the page shares the same one. Create analyzers
 wherever convenient (e.g. one per component, each with its own `readings`); Sudachi is loaded once.
 
 ## 3. Load, when you decide
@@ -172,22 +172,19 @@ Many texts in one trip to the worker (e.g. one per line):
 const perLine = await analyzer.analyzeMany(text.split("\n"));   // perLine[i] belongs to line i
 ```
 
-Prefer `analyzeMany` to many `analyze` calls: this Sudachi build spends ~100 ms on every call however short the
-text, so wakachi sends many texts to it together (100 short lines on a Mac: ~0.25 s in one `analyzeMany`, ~13 s as
-100 `analyze` calls).
+`analyzeMany` saves the trips to the worker; Sudachi itself is fast (a sentence takes about 1 ms on a Mac).
 
 Guarantees:
 - **Nothing is dropped or changed.** Joining every `surface` gives back the exact input, spaces and line breaks
   included (`pos: "whitespace"`). `input.slice(w.start, w.end) === w.surface`. Sudachi rewrites some characters
   internally (`:` → `：`); `surface` is always your original text.
 - `start`/`end` are ordinary JavaScript string positions.
-- `reading` is katakana, or `""` when there is none (unknown words, some loanwords like スマホ, symbols).
+- `reading` is katakana, or `""` when there is none (punctuation, symbols, Latin words; use `surface` then).
 - **Long text is fine.** Sudachi's memory never shrinks — one 50,000-character call would grow it from 150 MB to
   234 MB for good — so long text is analyzed in pieces of ≤ 8,000 characters, cut at sentence ends. Memory stays at
-  ~150 MB. (63,000 characters: ~4.5 s on a Mac.)
-- **URLs, emoji and long latin runs are fine.** This Sudachi build crashes on one unknown "word" of 256+ bytes (a
-  ~250-character URL, 64 emoji in a row, `wwww…`). Such runs are cut first, and a piece that still fails is split
-  and retried. One odd stretch never loses the whole text.
+  ~135 MB.
+- **URLs, emoji and long latin runs are fine.** (Older Sudachi builds crashed on them.) As a safety net, a piece that
+  makes Sudachi fail is split and retried, so one odd stretch never loses the whole text.
 
 | `pos` | Meaning |
 |---|---|
@@ -236,7 +233,7 @@ another's.
 Sudachi's dictionary prefers formal or rare readings for some very common words, and reads numbers digit by digit.
 With `everydayReadings` (on by default) wakachi corrects them. The word fixes come from comparing Sudachi with the
 53,000 words of [jp-word-ranks-data](https://github.com/PikaPikaGems/jp-word-ranks-data): of its 37,608 words with
-kanji, Sudachi reads 2,929 differently from the list, wakachi 2,546 (top 10,000: 541 → 411). Most of the rest are
+kanji, Sudachi reads 2,889 differently from the list, wakachi 2,512 (top 10,000: 539 → 411). Most of the rest are
 single kanji out of context (年, 月, 方), where Sudachi's choice is fine in a sentence, and katakana words Sudachi gives
 no reading.
 
@@ -245,14 +242,14 @@ no reading.
 | 私, 私たち | わたくし | わたし (私ども stays わたくしども) |
 | 明日 | あす | あした |
 | 日本, 日本語, 日本人, 外国人 | にっぽん, にっぽんにん, がいこくにん | にほん, にほんじん, がいこくじん |
-| お母さん, お父さん, お兄ちゃん, 姉さん | おははさん, おちちさん, おあにちゃん | おかあさん, おとうさん, おにいちゃん, ねえさん |
-| 言う, と言う, そう言う | ゆう | いう |
-| 何か, 何も, 何が | なんか, なんも | なにか, なにも, なにが (何で, 何の stay なん) |
-| 何人, 何分 | なにじん, なにぶん | なんにん, なんぷん |
-| 上手, 一度 | かみて, ひとたび | じょうず, いちど |
+| お母さん, お父さん, お兄ちゃん, 姉さん | おははさん, おちちさん, おあにちゃん, あねさん | おかあさん, おとうさん, おにいちゃん, ねえさん |
+| 言う, と言う | ゆう | いう |
+| 何か, 何も, 何が | なんか, なんも, なんが | なにか, なにも, なにが (何で, 何の stay なん) |
+| 何人, 何分 | なにじん, なんふん | なんにん, なんぷん |
+| 一度 | ひとたび | いちど |
 | 株式会社, 保険会社, 誕生日, 金曜日, 気に入る | …かいしゃ, たんじょうひ, きんようひ, きにはいる | …がいしゃ, たんじょうび, きんようび, きにいる |
 | 社会人, 研究所, 世界中, 予定通り | しゃかいにん, けんきゅうしょ, せかいちゅう, よていとおり | しゃかいじん, けんきゅうじょ, せかいじゅう, よていどおり (管理人, 事務所, 会議中, その通り unchanged) |
-| 私生活, 日本銀行 | わたくしせいかつ, にっぽんぎんこう | しせいかつ, にっぽんぎんこう (names keep にっぽん) |
+| 私生活 | わたくしせいかつ | しせいかつ (and names like 日本銀行 keep にっぽん) |
 | 或いは, 若しくは | あるいわ, もしくわ | あるいは, もしくは |
 
 **Numbers** become one word with the reading of the whole number, and the counter after it gets its sound change:
@@ -264,9 +261,9 @@ no reading.
 | 一回, 100回, 3階 | いちかい, いちれいれいかい, さんかい | いっかい, ひゃっかい, さんがい |
 | 六本, 4本, 何本 | ろくぽん, よんぽん, なんぽん | ろっぽん, よんほん, なんぼん |
 | 8歳, 一週間 | はちさい, いちしゅうかん | はっさい, いっしゅうかん |
-| 4日, 20日, 29日, 4月1日 | よんか, にれいにち, にきゅうにち, しがつついたち | よっか, はつか, にじゅうくにち, しがつついたち |
+| 4日, 20日, 29日, 4月1日 | よんか, にれいにち, にきゅうにち, よんがつついたち | よっか, はつか, にじゅうくにち, しがつついたち |
 | 4時, 9時, 4人 | よんじ, きゅうじ, よんにん | よじ, くじ, よにん |
-| 1,000円, 3.14, ０１２ | いち きごう れいれいれい えん, さん どっと いちよん, (none) | せんえん, さんてんいちよん, ぜろいちに |
+| 1,000円, 3.14, ０１２ | いちれいれいれいえん, さん．いちよん, れいいちに | せんえん, さんてんいちよん, ぜろいちに |
 
 Counters with sound changes: 回 個 階 課 ヶ月 曲 件 軒 校, 歳 冊 週 週間 通 着 頭 点 足, 本 杯 匹 分 泊 発 歩 票 品, 時 時間 年 円
 月 人 日 つ. After other counters, the number is corrected and the counter keeps Sudachi's reading.
@@ -304,7 +301,7 @@ The aim: **the page never freezes, the user never sees the same crash twice, and
   at once (status `unavailable`) instead of crashing again. Show the page without furigana.
   `analyzer.resetCrashGuard()` (e.g. behind a "Try again" button) clears it.
 - **Out of memory, checked before downloading.** Sudachi's memory is reserved before the dictionary is downloaded. If
-  the browser refuses, `load()` fails at once with `out-of-memory`, without a wasted 44 MB download.
+  the browser refuses, `load()` fails at once with `out-of-memory`, without a wasted 45 MB download.
 - **Timeouts measure time without progress**, so slow-but-working never times out. `loadStall` (60 s): no download or
   startup progress. `analyzeStall` (20 s): no piece of text (up to 8,000 characters, normally under a second)
   finished. Either way the worker is stopped and the call rejects with `timeout`; the next call starts fresh.
@@ -346,7 +343,7 @@ merge oddly.
 
 ## 10. Memory on iPhone Safari
 
-- Sudachi uses about **150 MB** while loaded, plus about one dictionary part (≤ 20 MB) while loading.
+- Sudachi uses about **135 MB** while loaded, plus about one dictionary part (≤ 20 MB) while loading.
 - iOS has no fixed per-tab limit. Reported crash points are around 1.5 GB (iPhone 12 Pro) to 3 GB (iPhone 15 Pro) for
   the **whole page**, lower on older phones and when other apps use memory.
 - The risk is everything on the page together. With a voice (e.g. yomiage) on the same page, load one, then the

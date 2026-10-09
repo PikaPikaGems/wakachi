@@ -1,57 +1,63 @@
-// Makes the dictionary files that `wakachi copy-files` installs into apps (and that a GitHub release will carry):
+// Makes the dictionary files that `wakachi copy-files` installs into apps (and that a wakachi release carries):
 //
 //   node scripts/make-files.mjs [--source <sudachi.wasm>] [--out <dir>]
 //
-// Input:  Sudachi compiled to wasm with SudachiDict "core" inside (the npm package sudachi@0.1.5, downloaded once
-//         into .cache/, or --source: the same binary already extracted).
+// Input:  Sudachi compiled to WebAssembly with the SudachiDict dictionary inside: the pre-release named in sudachi-build.mjs,
+//         made by .github/workflows/build-sudachi.yml (downloaded once into .cache/), or --source.
 // Output: <out> (default files/): parts of at most 20 MB + manifest.json (kakera's format) for two files:
 //           sudachi.wasm  the program with its data segments removed (see split-wasm.mjs)
 //           dict.bin      the data segments, one after the other; manifest.meta.segments says where each goes
-import { execFileSync } from "node:child_process";
+// src/sudachi-glue.js must be the glue of the same build (checked).
 import crypto from "node:crypto";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+import zlib from "node:zlib";
 import { splitFile, writeManifest, contentVersion } from "kakera/split";
 import { splitWasm } from "./split-wasm.mjs";
+import { SUDACHI_BUILD } from "./sudachi-build.mjs";
 
-const SUDACHI_NPM = "sudachi@0.1.5";
-const SUDACHI_SHA256 = "c1485e172eb74e07c487ef8e0ed43044ec7424281cca3784dd2e81182f45dc8e"; // the binary inside it
+const RELEASE = `https://github.com/PikaPikaGems/wakachi/releases/download/${SUDACHI_BUILD}/`;
+
 const root = new URL("../", import.meta.url).pathname;
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json")));
 const args = process.argv.slice(2);
 const opt = (name) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : undefined; };
 const outDir = path.resolve(opt("out") ?? path.join(root, "files"));
-const mb = (n) => (n / 1048576).toFixed(1);
+const mb = (n) => (n / 1e6).toFixed(1); // decimal MB, like info().downloadMB
 const sha256 = (b) => crypto.createHash("sha256").update(b).digest("hex");
 
-/** The Sudachi binary (program + dictionary in one wasm file). */
-function sudachiWasm() {
-  if (opt("source")) return fs.readFileSync(opt("source"));
-  const cached = path.join(root, ".cache", "sudachi-0.1.5.wasm");
-  if (fs.existsSync(cached)) return fs.readFileSync(cached);
-  // the npm file sudachi.js is wasm-bindgen glue followed by the whole binary as one base64 string
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "wakachi-"));
-  try {
-    console.log(`downloading ${SUDACHI_NPM} (164 MB, once) ...`);
-    execFileSync("npm", ["pack", SUDACHI_NPM, "--pack-destination", tmp, "--silent"], { stdio: "inherit" });
-    execFileSync("tar", ["-xzf", path.join(tmp, "sudachi-0.1.5.tgz"), "-C", tmp]);
-    const js = fs.readFileSync(path.join(tmp, "package/sudachi.js"));
-    const marker = Buffer.from("const wasmBASE64 = '");
-    const start = js.indexOf(marker) + marker.length;
-    const end = js.indexOf(Buffer.from("';"), start);
-    if (start < marker.length || end < 0) throw new Error("could not find the wasm inside sudachi.js (did the package change?)");
-    const wasm = Buffer.from(js.subarray(start, end).toString("latin1"), "base64");
-    fs.mkdirSync(path.dirname(cached), { recursive: true });
-    fs.writeFileSync(cached, wasm);
-    return wasm;
-  } finally {
-    fs.rmSync(tmp, { recursive: true, force: true });
-  }
+async function download(name, dest) {
+  if (fs.existsSync(dest)) return fs.readFileSync(dest);
+  console.log(`downloading ${RELEASE}${name} ...`);
+  const res = await fetch(RELEASE + name);
+  if (!res.ok) throw new Error(`${RELEASE}${name}: ${res.status} ${res.statusText}`);
+  const bytes = Buffer.from(await res.arrayBuffer());
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.writeFileSync(`${dest}.tmp`, bytes);
+  fs.renameSync(`${dest}.tmp`, dest);
+  return bytes;
 }
 
-const wasm = sudachiWasm();
-if (sha256(wasm) !== SUDACHI_SHA256) throw new Error(`the Sudachi binary is not the one wakachi was tested with (sha256 ${sha256(wasm)})`);
+/** The Sudachi build (program + dictionary in one wasm file) and what it says about itself. */
+async function sudachiBuild() {
+  if (opt("source")) return { wasm: fs.readFileSync(opt("source")), info: { dictionary: "(--source)" } };
+  const cache = path.join(root, ".cache", SUDACHI_BUILD);
+  const info = JSON.parse(await download("build-info.json", path.join(cache, "build-info.json")));
+  const glue = await download("sudachi-glue.js", path.join(cache, "sudachi-glue.js"));
+  if (!glue.equals(fs.readFileSync(path.join(root, "src/sudachi-glue.js")))) {
+    throw new Error(`src/sudachi-glue.js is not the glue of ${SUDACHI_BUILD}: copy .cache/${SUDACHI_BUILD}/sudachi-glue.js there`);
+  }
+  const wasmPath = path.join(cache, "sudachi.wasm");
+  if (!fs.existsSync(wasmPath)) {
+    fs.writeFileSync(wasmPath, zlib.gunzipSync(await download("sudachi.wasm.gz", path.join(cache, "sudachi.wasm.gz"))));
+    fs.rmSync(path.join(cache, "sudachi.wasm.gz"));
+  }
+  const wasm = fs.readFileSync(wasmPath);
+  if (sha256(wasm) !== info.wasmSha256) throw new Error(`${wasmPath} does not match build-info.json (delete .cache/${SUDACHI_BUILD} and run again)`);
+  return { wasm, info };
+}
+
+const { wasm, info } = await sudachiBuild();
 const { code, segments } = splitWasm(wasm);
 const data = Buffer.concat(segments.map((s) => s.bytes));
 
@@ -67,6 +73,7 @@ const m = writeManifest(outDir, {
   name: "wakachi-sudachi",
   version: contentVersion(code, data),
   files,
-  meta: { wakachi: pkg.version, sudachi: SUDACHI_NPM, segments: segments.map((s) => ({ offset: s.offset, length: s.bytes.length })) },
+  meta: { wakachi: pkg.version, sudachi: opt("source") ? "local build" : SUDACHI_BUILD, dictionary: info.dictionary,
+    segments: segments.map((s) => ({ offset: s.offset, length: s.bytes.length })) },
 });
-console.log(`\n${outDir}/manifest.json: download ${mb(m.downloadSize)} MB`);
+console.log(`\n${outDir}/manifest.json: ${info.dictionary}, download ${mb(m.downloadSize)} MB`);
