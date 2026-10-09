@@ -60,7 +60,7 @@ Creating it **does nothing**: no download, no worker, no memory. Options, all op
 
 | Option | Default | What it does |
 |---|---|---|
-| `filesUrl` | `"/wakachi/"` | Where `copy-files` put the files, if not the default |
+| `filesUrl` | `"/wakachi/"` | Where `copy-files` put the files, if not the default. Can be another site, e.g. `"https://example.github.io/wakachi-files/"`, if it sends CORS headers (GitHub Pages and CDNs do; GitHub release links don't) |
 | `everydayReadings` | `true` | Correct readings Sudachi gets formal or wrong for everyday text (§6). `false`: Sudachi's own |
 | `readings` | `{}` | Your own reading fixes, e.g. `{ "私": "わたくし" }` (§6) |
 | `idleTimeout` | `60_000` | Free the memory after this many ms unused. `0` = never |

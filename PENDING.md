@@ -1,10 +1,7 @@
 # Pending
 
-- [ ] **Files on another host.** Today the files must be on the same site as the page. The dictionary parts could
-      come from any host that sends CORS headers (GitHub Pages does), but browsers refuse to start a worker from
-      another origin, so `wakachi-worker.js` can't. Fix (in kakera): start the worker from a small same-origin blob that
-      imports the remote script (the remote host then also needs CORS on that file). GitHub release downloads send no
-      CORS headers, so a page can't load from a release directly; GitHub Pages or a CDN would work.
+- [x] **Files on another host** (2026-10-09): `filesUrl` can be another site that sends CORS headers; kakera starts
+      the worker through a small same-origin script. Tested with two local origins.
 - [ ] **Speed.** Each Sudachi call costs ~125 ms whatever its length; `analyzeMany` batches texts to hide it. Cause
       (CPU profile, 2026-10-09): the npm build (sudachi@0.1.5, 2021, the latest on npm) rebuilds the tokenizer from
       the dictionary bytes on every call (`Tokenizer::from_dictionary_bytes`: 98% of the time, mostly

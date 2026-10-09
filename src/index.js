@@ -16,24 +16,6 @@ export class AnalyzerError extends KakeraError {}
 const pool = createPool({ prefix: "wakachi", ErrorClass: AnalyzerError });
 let versionChecked = false;
 
-/**
- * Browsers say nothing useful when a worker's script can't be loaded ("unknown error"), so find out why.
- * The usual causes: copy-files wasn't run (404), or the site's server isn't reachable.
- */
-async function explainStartFailure(workerUrl, err) {
-  let res;
-  try {
-    res = await fetch(workerUrl, { method: "HEAD", cache: "no-store" });
-  } catch {
-    return new AnalyzerError("download-failed", `could not reach ${workerUrl} (is the server running, is the device online?)`, { cause: err });
-  }
-  if (res.status === 404) {
-    return new AnalyzerError("engine-failed", `${workerUrl.replace(/\?.*/, "")} is missing: run "wakachi copy-files" into the folder served at that address`, { cause: err });
-  }
-  if (!res.ok) return new AnalyzerError("download-failed", `${workerUrl}: ${res.status} ${res.statusText}`, { cause: err });
-  return err;
-}
-
 function checkReadings(readings) {
   if (readings == null || typeof readings !== "object" || Array.isArray(readings)) throw new TypeError("readings must be an object like { \"私\": \"わたくし\" }");
   for (const [k, v] of Object.entries(readings)) {
@@ -59,7 +41,8 @@ export function createAnalyzer(options = {}) {
   const handle = pool.handle(definedOnly({
     name: "sudachi",
     filesUrl: base,
-    createWorker: () => new Worker(workerUrl, { type: "module" }),
+    workerUrl, // kakera starts it, also from another site (CORS), and explains why it didn't start
+    missingHint: 'run "wakachi copy-files" into the folder served at that address',
     idleTimeout, stopWhenHidden, crashGuard, persistStorage,
     loadStall: timeouts.loadStall,
   }));
@@ -86,12 +69,7 @@ export function createAnalyzer(options = {}) {
 
     /** Download (first time) and start Sudachi. Resolves { fromCache, ms, timings }. */
     async load() {
-      let res;
-      try {
-        res = await handle.load();
-      } catch (err) {
-        throw err.code === "engine-failed" && /failed to start/.test(err.message) ? await explainStartFailure(workerUrl, err) : err;
-      }
+      const res = await handle.load();
       if (!versionChecked) {
         const engine = await handle.call("version");
         if (engine !== VERSION && engine !== "dev" && VERSION !== "dev") {
