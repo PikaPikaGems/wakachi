@@ -6,24 +6,23 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./types/index.d.ts",
+      "types": "./dist/types/index.d.ts",
       "import": "./dist/wakachi.js",
       "default": "./dist/wakachi.js"
     },
     "./text": {
-      "types": "./types/text.d.ts",
+      "types": "./dist/types/text.d.ts",
       "import": "./dist/text.js",
       "default": "./dist/text.js"
     }
   },
-  "types": "./types/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "bin": {
     "wakachi": "./bin/wakachi.mjs"
   },
   "files": [
     "dist/",
     "bin/",
-    "types/",
     "API.md",
     "NOTICE.md"
   ],
@@ -31,9 +30,11 @@
     "build": "node scripts/build.mjs",
     "files": "node scripts/make-files.mjs",
     "test": "node --test test/*.test.mjs",
-    "test:types": "tsc -p test/types",
+    "test:types": "npm run check && tsc -p test/types",
     "prepack": "npm run build",
-    "publish:demo": "node scripts/publish-demo.mjs"
+    "publish:demo": "node scripts/publish-demo.mjs",
+    "check": "tsc --noEmit",
+    "pretest": "npm run build"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",

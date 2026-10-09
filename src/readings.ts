@@ -10,17 +10,19 @@
 //
 // Readings stay katakana (like Sudachi's); keys and values may be given in either kana.
 
-const toKatakana = (s) => s.replace(/[ぁ-ゖ]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0x60));
+import type { Morpheme, AnalyzerOptions } from "./types.js";
+
+const toKatakana = (s: string) => s.replace(/[ぁ-ゖ]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0x60));
 
 // ------------------------------------------------------------------------------------------------ words
 
 /** Same surface, any context. */
-const WORDS = {
+const WORDS: Record<string, string> = {
   "私": "ワタシ", "明日": "アシタ", "日本": "ニホン", "一度": "イチド", "何人": "ナンニン", "何分": "ナンプン", "上手": "ジョウズ",
   "或いは": "アルイハ", "若しくは": "モシクハ", "所謂": "イワユル", "煩い": "ウルサイ", "不味い": "マズイ",
 };
 
-const FAMILY = { "父": "トウ", "母": "カア", "兄": "ニイ", "姉": "ネエ" };
+const FAMILY: Record<string, string> = { "父": "トウ", "母": "カア", "兄": "ニイ", "姉": "ネエ" };
 const FAMILY_AFTER = new Set(["さん", "ちゃん", "様", "さま"]);
 const NANI_BEFORE = new Set(["か", "も", "が", "を", "に", "から", "まで", "より", "それ", "これ", "あれ", "一つ"]);
 // Words before 人 / 所 / 中 that change its reading (from jp-word-ranks-data; the others keep Sudachi's にん, しょ, ちゅう:
@@ -37,18 +39,18 @@ const NIPPON_AFTER = new Set(["大", "近畿", "全"]);
 const GAISHA_AFTER = new Set(["株式", "子", "親", "合同", "合資", "有限", "関連"]);
 
 /** The next / previous word; null at the ends and across whitespace (a space or line break separates words). */
-const neighbour = (w) => (w && w.pos !== "空白" ? w : null);
-const nextWord = (ws, i) => neighbour(ws[i + 1]);
-const prevWord = (ws, i) => neighbour(ws[i - 1]);
+const neighbour = (w: Morpheme | undefined) => (w && w.pos !== "空白" ? w : null);
+const nextWord = (ws: Morpheme[], i: number) => neighbour(ws[i + 1]);
+const prevWord = (ws: Morpheme[], i: number) => neighbour(ws[i - 1]);
 
-function fixWord(ws, i) {
+function fixWord(ws: Morpheme[], i: number) {
   const w = ws[i];
   const next = nextWord(ws, i), prev = prevWord(ws, i);
   // 私: only Sudachi's わたくし becomes わたし (私生活 stays し); 私ども, 私め are humble, わたくし is right
   // 私生活, 私立, 私鉄: し in compounds
-  if (w.surface === "私" && SHI_BEFORE.has(next?.surface)) return "シ";
-  if (w.surface === "私") return w.reading === "ワタクシ" && !["ども", "め"].includes(next?.surface) ? "ワタシ" : null;
-  if (w.surface === "日本" && (NIPPON_BEFORE.has(next?.surface) || NIPPON_AFTER.has(prev?.surface))) return null;
+  if (w.surface === "私" && SHI_BEFORE.has((next?.surface ?? ""))) return "シ";
+  if (w.surface === "私") return w.reading === "ワタクシ" && !["ども", "め"].includes((next?.surface ?? "")) ? "ワタシ" : null;
+  if (w.surface === "日本" && (NIPPON_BEFORE.has((next?.surface ?? "")) || NIPPON_AFTER.has((prev?.surface ?? "")))) return null;
   if (WORDS[w.surface] && w.reading) return WORDS[w.surface];
   // 言う: Sudachi says ゆう (言う, と言う); 言っ / 言わ are already いっ / いわ
   if (w.dictionaryForm === "言う" && w.reading.startsWith("ユ")) return `イ${w.reading.slice(1)}`;
@@ -57,10 +59,10 @@ function fixWord(ws, i) {
   // 何か, 何も, 何が: なに (なん stays before counters and in 何で, 何の, 何だ)
   // (何にしても, 何にせよ stay なん)
   if (w.surface === "何" && w.reading === "ナン" && next && NANI_BEFORE.has(next.surface)
-    && !(next.surface === "に" && ["し", "せよ"].includes(nextWord(ws, ws.indexOf(next))?.surface))) return "ナニ";
+    && !(next.surface === "に" && ["し", "せよ"].includes((nextWord(ws, ws.indexOf(next))?.surface ?? "")))) return "ナニ";
   // the word before, also with the one before it (一日中: 一 + 日)
   const before = prev ? [prev.surface, (prevWord(ws, ws.indexOf(prev))?.surface ?? "") + prev.surface] : [];
-  const after = (set) => before.some((b) => set.has(b));
+  const after = (set: Set<string>) => before.some((b) => set.has(b));
   // 日本人, 社会人, アメリカ人: じん after a place and some nouns
   if (w.surface === "人" && w.reading === "ニン" && prev && (prev.posDetail[2] === "地名" || after(JIN_AFTER))) return "ジン";
   // 研究所: じょ
@@ -72,11 +74,11 @@ function fixWord(ws, i) {
   // 予定通り, いつも通り, 今まで通り: どおり (その通り, 言う通り stay とおり)
   if (w.surface === "通り" && w.reading === "トオリ" && prev && (["名詞", "代名詞", "副詞", "接尾辞"].includes(prev.pos) || prev.surface === "まで")) return "ドオリ";
   // 誕生日, 金曜日
-  if (w.surface === "日" && (prev?.surface === "誕生" || prev?.surface.endsWith("曜"))) return "ビ";
+  if (w.surface === "日" && ((prev?.surface ?? "") === "誕生" || prev?.surface.endsWith("曜"))) return "ビ";
   // 気に入る: いる, not はいる
-  if (w.dictionaryForm === "入る" && w.reading.startsWith("ハイ") && prev?.surface === "に" && prevWord(ws, ws.indexOf(prev))?.surface === "気") return w.reading.slice(1);
+  if (w.dictionaryForm === "入る" && w.reading.startsWith("ハイ") && (prev?.surface ?? "") === "に" && prevWord(ws, ws.indexOf(prev!))?.surface === "気") return w.reading.slice(1);
   // 一日 / 1日: ついたち only after a month (4月1日), else いちにち (一日中, 1日に3回)
-  if (/^[1１一]日$/.test(w.surface) && w.reading === "ツイタチ" && prev?.surface !== "月") return "イチニチ";
+  if (/^[1１一]日$/.test(w.surface) && w.reading === "ツイタチ" && (prev?.surface ?? "") !== "月") return "イチニチ";
   return null;
 }
 
@@ -84,26 +86,26 @@ function fixWord(ws, i) {
 
 const ONES = ["", "イチ", "ニ", "サン", "ヨン", "ゴ", "ロク", "ナナ", "ハチ", "キュウ"];
 const DIGIT_SPOKEN = ["ゼロ", "イチ", "ニ", "サン", "ヨン", "ゴ", "ロク", "ナナ", "ハチ", "キュウ"];
-const KANJI_DIGIT = { "〇": 0, "零": 0, "一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9 };
-const KANJI_SMALL = { "十": 10, "百": 100, "千": 1000 };
-const KANJI_BIG = { "万": 1e4, "億": 1e8, "兆": 1e12 };
-const isDigitText = (s) => /^[0-9０-９]+$/.test(s);
+const KANJI_DIGIT: Record<string, number> = { "〇": 0, "零": 0, "一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9 };
+const KANJI_SMALL: Record<string, number> = { "十": 10, "百": 100, "千": 1000 };
+const KANJI_BIG: Record<string, number> = { "万": 1e4, "億": 1e8, "兆": 1e12 };
+const isDigitText = (s: string) => /^[0-9０-９]+$/.test(s);
 // Sudachi gives digits as one word ("10", "1,000", "3.14") or (older builds) one word per digit
-const isNumeralWord = (w) => w.tags.includes("数詞") && w.surface !== "何"
+const isNumeralWord = (w: Morpheme) => w.tags.includes("数詞") && w.surface !== "何"
   && (/^[0-9０-９][0-9０-９,，.．]*$/.test(w.surface) || /^[〇零一二三四五六七八九十百千万億兆]+$/.test(w.surface));
 const D = "[0-9０-９]";
 const NUMBER_TEXT = new RegExp(`^(${D}{1,3}([,，]${D}{3})+|${D}+)([.．]${D}+)?$`); // 12, 1,000, 3.14, 1,234.5
-const halfWidth = (s) => s.replace(/[０-９．，]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
+const halfWidth = (s: string) => s.replace(/[０-９．，]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
 
 /** Value of a number written with digits and/or kanji numerals ("10", "三十五", "二〇二六", "3万"); null if unsure. */
-export function parseNumber(s) {
+export function parseNumber(s: string): number | null {
   s = halfWidth(s).replace(/,/g, "");
   if (/^[0-9]+$/.test(s)) return Number(s);
   if (/^[〇零一二三四五六七八九]+$/.test(s) && s.length > 1) {
     // 二〇二六 is a year; 二三 is "two or three"
     return /[〇零]/.test(s) ? Number([...s].map((c) => KANJI_DIGIT[c]).join("")) : null;
   }
-  let total = 0, section = 0, buf = null;
+  let total = 0, section = 0, buf: number | null = null;
   for (const c of s) {
     if (/[0-9]/.test(c)) buf = (buf ?? 0) * 10 + Number(c);
     else if (c in KANJI_DIGIT) buf = (buf ?? 0) * 10 + KANJI_DIGIT[c];
@@ -116,21 +118,21 @@ export function parseNumber(s) {
 }
 
 /** 0–9999 as spoken pieces: 3608 → ["サンゼン", "ロッピャク", "ハチ"]. */
-function smallPieces(n) {
+function smallPieces(n: number): string[] {
   const out = [];
   const [th, hu, te, on] = [Math.floor(n / 1000), Math.floor(n / 100) % 10, Math.floor(n / 10) % 10, n % 10];
-  if (th) out.push({ 1: "セン", 3: "サンゼン", 8: "ハッセン" }[th] ?? `${ONES[th]}セン`);
-  if (hu) out.push({ 1: "ヒャク", 3: "サンビャク", 6: "ロッピャク", 8: "ハッピャク" }[hu] ?? `${ONES[hu]}ヒャク`);
+  if (th) out.push(({ 1: "セン", 3: "サンゼン", 8: "ハッセン" } as Record<number, string>)[th] ?? `${ONES[th]}セン`);
+  if (hu) out.push(({ 1: "ヒャク", 3: "サンビャク", 6: "ロッピャク", 8: "ハッピャク" } as Record<number, string>)[hu] ?? `${ONES[hu]}ヒャク`);
   if (te) out.push(te === 1 ? "ジュウ" : `${ONES[te]}ジュウ`);
   if (on) out.push(ONES[on]);
   return out;
 }
 
 /** A whole number as spoken pieces; the last piece is the one counters change. 0 → ["ゼロ"]. */
-export function numberPieces(n) {
+export function numberPieces(n: number): string[] {
   if (n === 0) return ["ゼロ"];
   const out = [];
-  for (const [unit, name] of [[1e12, "チョウ"], [1e8, "オク"], [1e4, "マン"]]) {
+  for (const [unit, name] of [[1e12, "チョウ"], [1e8, "オク"], [1e4, "マン"]] as const) {
     const k = Math.floor(n / unit) % 1e4;
     if (k) out.push(...smallPieces(k), name);
   }
@@ -143,7 +145,8 @@ export function numberPieces(n) {
 // last pieces; h: how the counter's own ハ-row sound changes (p after a cut-short number, and after ン if "p" / "b").
 const GEM_KST = ["イチ", "ハチ", "ジュウ"];               // 1, 8, 10: いっさい, はっさつ, じゅっこ
 const GEM_K = [...GEM_KST, "ロク", "ヒャク"];               // + 6, 100 before か-row: ろっかい, ひゃっこ
-const COUNTERS = {
+interface CounterRule { gem?: string[]; h?: "p" | "b"; pAfterYon?: boolean; afterN?: string; four?: string; seven?: string; nine?: string }
+const COUNTERS: Record<string, CounterRule> = {
   // か-row
   "回": { gem: GEM_K }, "個": { gem: GEM_K }, "階": { gem: GEM_K, afterN: "ガイ" }, "課": { gem: GEM_K },
   "ヶ月": { gem: GEM_K }, "か月": { gem: GEM_K }, "カ月": { gem: GEM_K }, "ケ月": { gem: GEM_K }, "箇月": { gem: GEM_K },
@@ -159,25 +162,25 @@ const COUNTERS = {
   "時": { four: "ヨ", seven: "シチ", nine: "ク" }, "時間": { four: "ヨ" }, "年": { four: "ヨ" }, "円": { four: "ヨ" },
   "月": { four: "シ", seven: "シチ", nine: "ク" }, "人": { four: "ヨ" },
 };
-const BASE = { "回": "カイ", "個": "コ", "階": "カイ", "課": "カ", "ヶ月": "カゲツ", "か月": "カゲツ", "カ月": "カゲツ", "ケ月": "カゲツ",
+const BASE: Record<string, string> = { "回": "カイ", "個": "コ", "階": "カイ", "課": "カ", "ヶ月": "カゲツ", "か月": "カゲツ", "カ月": "カゲツ", "ケ月": "カゲツ",
   "箇月": "カゲツ", "曲": "キョク", "件": "ケン", "軒": "ケン", "校": "コウ", "歳": "サイ", "才": "サイ", "冊": "サツ", "週": "シュウ",
   "週間": "シュウカン", "通": "ツウ", "着": "チャク", "頭": "トウ", "点": "テン", "足": "ソク", "本": "ホン", "杯": "ハイ", "匹": "ヒキ",
   "分": "フン", "泊": "ハク", "発": "ハツ", "歩": "ホ", "票": "ヒョウ", "品": "ヒン", "時": "ジ", "時間": "ジカン", "年": "ネン",
   "円": "エン", "月": "ガツ", "人": "ニン" };
-const H_TO = { b: { "ハ": "バ", "ヒ": "ビ", "フ": "ブ", "ヘ": "ベ", "ホ": "ボ" }, p: { "ハ": "パ", "ヒ": "ピ", "フ": "プ", "ヘ": "ペ", "ホ": "ポ" } };
+const H_TO: Record<"b" | "p", Record<string, string>> = { b: { "ハ": "バ", "ヒ": "ビ", "フ": "ブ", "ヘ": "ベ", "ホ": "ボ" }, p: { "ハ": "パ", "ヒ": "ピ", "フ": "プ", "ヘ": "ペ", "ホ": "ポ" } };
 
 // Whole words: number + counter read as one (they become one word, so furigana spans both)
-const DAYS = { 1: "ツイタチ", 2: "フツカ", 3: "ミッカ", 4: "ヨッカ", 5: "イツカ", 6: "ムイカ", 7: "ナノカ", 8: "ヨウカ", 9: "ココノカ", 10: "トオカ", 14: "ジュウヨッカ", 20: "ハツカ", 24: "ニジュウヨッカ" };
-const TSU = { 1: "ヒトツ", 2: "フタツ", 3: "ミッツ", 4: "ヨッツ", 5: "イツツ", 6: "ムッツ", 7: "ナナツ", 8: "ヤッツ", 9: "ココノツ" };
-const PEOPLE = { 1: "ヒトリ", 2: "フタリ" };
+const DAYS: Record<number, string> = { 1: "ツイタチ", 2: "フツカ", 3: "ミッカ", 4: "ヨッカ", 5: "イツカ", 6: "ムイカ", 7: "ナノカ", 8: "ヨウカ", 9: "ココノカ", 10: "トオカ", 14: "ジュウヨッカ", 20: "ハツカ", 24: "ニジュウヨッカ" };
+const TSU: Record<number, string> = { 1: "ヒトツ", 2: "フタツ", 3: "ミッツ", 4: "ヨッツ", 5: "イツツ", 6: "ムッツ", 7: "ナナツ", 8: "ヤッツ", 9: "ココノツ" };
+const PEOPLE: Record<number, string> = { 1: "ヒトリ", 2: "フタリ" };
 
-const CUT = { "イチ": "イッ", "ロク": "ロッ", "ハチ": "ハッ", "ジュウ": "ジュッ", "ヒャク": "ヒャッ" };
+const CUT: Record<string, string> = { "イチ": "イッ", "ロク": "ロッ", "ハチ": "ハッ", "ジュウ": "ジュッ", "ヒャク": "ヒャッ" };
 
 /**
  * Readings for a number (pieces from numberPieces, or ["ナン"] for 何) followed by a counter.
  * @returns {{ number: string, counter: string } | { whole: string } | null}  null: no rule for this counter
  */
-export function countReading(n, pieces, counter, { afterMonth = false, afterDai = false } = {}) {
+export function countReading(n: number | null, pieces: string[], counter: string, { afterMonth = false, afterDai = false } = {}): { number: string; counter: string } | { whole: string } | null {
   if (counter === "日" && n != null) {
     if (n === 1 && !afterMonth) return { number: "イチ", counter: "ニチ" };
     if (DAYS[n]) return { whole: DAYS[n] };
@@ -185,21 +188,21 @@ export function countReading(n, pieces, counter, { afterMonth = false, afterDai 
     const last = ones === 7 ? "シチ" : ones === 9 ? "ク" : pieces.at(-1); // 17日 じゅうしちにち, 29日 にじゅうくにち
     return { number: pieces.slice(0, -1).join("") + last, counter: "ニチ" };
   }
-  if (counter === "つ" && TSU[n]) return { whole: TSU[n] };
-  if (counter === "人" && PEOPLE[n] && !afterDai) return { whole: PEOPLE[n] }; // 第一人者: いちにん
+  if (counter === "つ" && TSU[n!]) return { whole: TSU[n!] };
+  if (counter === "人" && PEOPLE[n!] && !afterDai) return { whole: PEOPLE[n!] }; // 第一人者: いちにん
   if ((counter === "歳" || counter === "才") && n === 20) return { whole: "ハタチ" };
   const rule = COUNTERS[counter];
   if (!rule) return null;
   const head = pieces.slice(0, -1).join("");
-  let last = pieces.at(-1);
+  let last = pieces.at(-1)!;
   let reading = BASE[counter];
   const ones = n != null && n % 10 !== 0 && pieces.at(-1) === ONES[n % 10];
-  if (ones && n % 10 === 4 && rule.four) last = rule.four;
-  if (ones && n % 10 === 7 && rule.seven) last = rule.seven;
-  if (ones && n % 10 === 9 && rule.nine) last = rule.nine;
-  const cut = rule.gem && CUT[Object.keys(CUT).find((k) => last.endsWith(k) && rule.gem.includes(k))];
+  if (ones && n! % 10 === 4 && rule.four) last = rule.four;
+  if (ones && n! % 10 === 7 && rule.seven) last = rule.seven;
+  if (ones && n! % 10 === 9 && rule.nine) last = rule.nine;
+  const cut = rule.gem && CUT[Object.keys(CUT).find((k) => last.endsWith(k) && rule.gem!.includes(k)) ?? ""];
   if (cut) {
-    last = last.slice(0, last.length - (Object.keys(CUT).find((k) => last.endsWith(k))).length) + cut;
+    last = last.slice(0, last.length - (Object.keys(CUT).find((k) => last.endsWith(k)))!.length) + cut;
     if (rule.h) reading = (H_TO.p[reading[0]] ?? reading[0]) + reading.slice(1);
   } else if (last.endsWith("ン")) {
     const yon = last.endsWith("ヨン");
@@ -211,15 +214,15 @@ export function countReading(n, pieces, counter, { afterMonth = false, afterDai 
 }
 
 /** Joins words [i, j) into one word with the given reading. */
-function merged(ws, i, j, reading) {
+function merged(ws: Morpheme[], i: number, j: number, reading: string): Morpheme {
   const first = ws[i], last = ws[j - 1];
   return { ...first, surface: ws.slice(i, j).map((w) => w.surface).join(""), reading, dictionaryForm: ws.slice(i, j).map((w) => w.dictionaryForm).join(""),
     normalizedForm: ws.slice(i, j).map((w) => w.normalizedForm).join(""), end: last.end };
 }
 
 /** Merge number runs into one word each, with whole-number readings and counter sound changes. */
-function fixNumbers(ws) {
-  const out = [];
+function fixNumbers(ws: Morpheme[]): Morpheme[] {
+  const out: Morpheme[] = [];
   for (let i = 0; i < ws.length; i++) {
     const w = ws[i];
     const isNan = w.surface === "何" && w.reading === "ナン";
@@ -246,11 +249,11 @@ function fixNumbers(ws) {
     // 万年, 億万: a big unit with no number before it isn't いちまん
     const n = isNan || /^[万億兆]/.test(w.surface) ? null : parseNumber(intPart);
     if (!isNan && n == null) { out.push(...ws.slice(i, j)); i = j - 1; continue; }
-    let pieces = isNan ? ["ナン"] : numberPieces(n);
-    if (/^0[0-9]+$/.test(intPart)) pieces = [[...intPart].map((d) => DIGIT_SPOKEN[d]).join("")]; // 007: digit by digit
-    if (frac !== undefined) pieces = [...pieces.slice(0, -1), pieces.at(-1) + "テン" + [...frac].map((d) => DIGIT_SPOKEN[d]).join("")];
+    let pieces = isNan ? ["ナン"] : numberPieces(n!);
+    if (/^0[0-9]+$/.test(intPart)) pieces = [[...intPart].map((d) => DIGIT_SPOKEN[Number(d)]).join("")]; // 007: digit by digit
+    if (frac !== undefined) pieces = [...pieces.slice(0, -1), pieces.at(-1) + "テン" + [...frac].map((d) => DIGIT_SPOKEN[Number(d)]).join("")];
 
-    let counter = ws[j];
+    let counter: Morpheme | null = ws[j];
     if (counter?.surface === "分" && ws[j + 1]?.surface === "の") counter = null; // 三分の一: a fraction, さんぶん
     if (n === 0 && decimal < 0 && counter?.tags.includes("助数詞")) pieces = ["レイ"]; // 零時, 0時: れいじ
     const hasRule = counter && decimal < 0 && (counter.tags.includes("助数詞") || counter.pos === "接尾辞") && countReading(n, pieces, counter.surface);
@@ -258,11 +261,11 @@ function fixNumbers(ws) {
     if (j - i === 1 && !digits && !isNan && !hasRule) { out.push(w); continue; }
     const prev = out.at(-1);
     const rule = counter && decimal < 0 && (counter.tags.includes("助数詞") || counter.pos === "接尾辞")
-      ? countReading(isNan ? null : n, pieces, counter.surface, { afterMonth: prev?.surface.endsWith("月"), afterDai: prev?.surface === "第" })
+      ? countReading(isNan ? null : n, pieces, counter.surface, { afterMonth: prev?.surface.endsWith("月"), afterDai: (prev?.surface ?? "") === "第" })
       : null;
-    if (rule?.whole) { out.push({ ...merged(ws, i, j + 1, rule.whole), pos: "名詞", tags: ["数詞", "助数詞"] }); i = j; continue; }
+    if (rule && "whole" in rule) { out.push({ ...merged(ws, i, j + 1, rule.whole), pos: "名詞", tags: ["数詞", "助数詞"] }); i = j; continue; }
     out.push(j - i > 1 || !isNan ? { ...merged(ws, i, j, rule ? rule.number : pieces.join("")), pos: "名詞" } : { ...w, reading: rule ? rule.number : w.reading });
-    if (rule) { out.push({ ...counter, reading: rule.counter }); i = j; } else i = j - 1;
+    if (rule) { out.push({ ...counter!, reading: rule.counter }); i = j; } else i = j - 1;
   }
   return out;
 }
@@ -270,10 +273,10 @@ function fixNumbers(ws) {
 // ------------------------------------------------------------------------------------------------ apply
 
 /** The app's own readings: keys matched against whole words (or runs of words, which become one). */
-function applyOwn(ws, own) {
+function applyOwn(ws: Morpheme[], own: Record<string, string>): Morpheme[] {
   const keys = Object.keys(own).sort((a, b) => b.length - a.length);
   if (!keys.length) return ws;
-  const out = [];
+  const out: Morpheme[] = [];
   for (let i = 0; i < ws.length; i++) {
     let hit = null;
     for (const k of keys) {
@@ -293,7 +296,7 @@ function applyOwn(ws, own) {
  * @param {object[]} words  analyze() results for one text
  * @param {{ everydayReadings?: boolean, readings?: Record<string, string> }} o
  */
-export function fixReadings(words, { everydayReadings = true, readings = {} } = {}) {
+export function fixReadings(words: Morpheme[], { everydayReadings = true, readings = {} }: Pick<AnalyzerOptions, "everydayReadings" | "readings"> = {}): Morpheme[] {
   let ws = words;
   if (everydayReadings) {
     ws = fixNumbers(ws);

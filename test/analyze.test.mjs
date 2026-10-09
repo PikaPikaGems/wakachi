@@ -2,8 +2,8 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { test } from "node:test";
-import { splitInput, MAX_PIECE } from "../src/split-input.js";
-import { makeAnalyzeText } from "../src/analyze.js";
+import { splitInput, MAX_PIECE } from "../.cache/compiled/split-input.js";
+import { makeAnalyzeText } from "../.cache/compiled/analyze.js";
 import { sudachi } from "./sudachi.js";
 
 const { glue, memory } = await sudachi("analyze");

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { furigana, furiganaOf, groupBunsetsu, POS_ENGLISH, posInEnglish, posLabel, splitSentences, toHiragana } from "../src/text.js";
+import { furigana, furiganaOf, groupBunsetsu, POS_ENGLISH, posInEnglish, posLabel, splitSentences, toHiragana } from "../.cache/compiled/text.js";
 
 const w = (surface, reading, pos = "名詞", extra = {}) => ({ surface, reading, pos, tags: [], posDetail: ["名詞", "普通名詞", "一般", "*", "*", "*"], dictionaryForm: surface, ...extra });
 

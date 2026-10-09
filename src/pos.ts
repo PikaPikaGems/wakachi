@@ -2,9 +2,11 @@
 // (sub-levels that matter for grouping and readings: 固有名詞, 数詞, 助数詞...). English names: posInEnglish() in text.js.
 
 /** @param {string[]} p  Sudachi's six part-of-speech fields */
-export function sudachiPos(p) {
+import type { Morpheme, PosTag } from "./types.js";
+
+export function sudachiPos(p: string[]): Pick<Morpheme, "pos" | "tags"> {
   const [p0, p1, p2] = p;
-  const tags = [];
+  const tags: PosTag[] = [];
   if (p1 === "固有名詞") tags.push("固有名詞");
   if (p1 === "数詞") tags.push("数詞");
   if (p2 === "助数詞可能" || p2 === "助数詞") tags.push("助数詞");

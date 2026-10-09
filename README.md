@@ -47,23 +47,29 @@ files:  manifest.json + parts  Sudachi's program (1 MB) and dictionary (124 MB, 
 ## Layout
 
 ```
-src/index.js        createAnalyzer, AnalyzerError (page side)
-src/worker.js       Sudachi in the worker: streams the dictionary straight into its memory
-src/analyze.js      Sudachi's output to words: positions, URL/emoji protection, batching
-src/readings.js     everyday readings and numbers; the app's own readings
-src/text.js         wakachi/text: furigana, bunsetsu, sentences, labels
-src/split-input.js  cutting long text at sentence ends
-src/pos.js          Sudachi's part-of-speech tags to pos/tags
+src/index.ts        createAnalyzer, AnalyzerError (page side)
+src/worker.ts       Sudachi in the worker: streams the dictionary straight into its memory
+src/analyze.ts      Sudachi's output to words: positions, URL/emoji protection, batching
+src/readings.ts     everyday readings and numbers; the app's own readings
+src/text.ts         wakachi/text: furigana, bunsetsu, sentences, labels
+src/split-input.ts  cutting long text at sentence ends
+src/pos.ts          Sudachi's part-of-speech tags to pos/tags
 src/sudachi-glue.js wasm-bindgen glue of the Sudachi build (scripts/sudachi-build.mjs names it)
 bin/wakachi.mjs     wakachi copy-files
 scripts/            build.mjs (dist/), make-files.mjs (files/)
-types/              index.d.ts, text.d.ts
+src/types.ts        public API types, checked against the implementation
+dist/types/         generated declarations (index.d.ts, text.d.ts, types.d.ts)
 test/               Node tests; analyzer.html: try it + automatic checks in the browser
 ```
 
 ## Development
 
+Source is strict TypeScript. `npm run build` checks the source, bundles JavaScript, and generates declarations in
+`dist/types/`. `npm test` builds first and tests compiled modules from `.cache/compiled/`. Generated Sudachi glue
+and build scripts stay JavaScript.
+
 ```bash
+npm ci --prefix ../kakera        # build the shared TypeScript dependency first
 npm install                     # kakera is linked from ../kakera
 npm run files                   # files/ (downloads our Sudachi build once, into .cache/)
 npm test                        # Node tests (need .cache/ from the line above)

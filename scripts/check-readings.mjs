@@ -4,14 +4,14 @@
 //   node scripts/check-readings.mjs [--words N] [--raw] [--list <with_definition.tsv>] [--out <file>]
 //
 // --words N  only the N most frequent words (default: all)
-// --raw      Sudachi's readings without wakachi's fixes (src/readings.js), to see what the fixes change
+// --raw      Sudachi's readings without wakachi's fixes (src/readings.ts), to see what the fixes change
 // Output columns: rank, word, wakachi's reading, the list's readings, how Sudachi cut the word.
 // 2026-10-09: all 37,608 kanji words: 2,682 mismatches raw, 2,303 with the fixes (top 10,000: 391 → 261).
 import fs from "node:fs";
 import { SUDACHI_BUILD } from "./sudachi-build.mjs";
-import { makeAnalyzeText } from "../src/analyze.js";
-import { fixReadings } from "../src/readings.js";
-import { toHiragana } from "../src/text.js";
+import { makeAnalyzeText } from "../.cache/compiled/analyze.js";
+import { fixReadings } from "../.cache/compiled/readings.js";
+import { toHiragana } from "../.cache/compiled/text.js";
 
 const root = new URL("../", import.meta.url).pathname;
 const args = process.argv.slice(2);

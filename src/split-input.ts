@@ -15,7 +15,7 @@ const CLOSERS = "」』）)］]】〉》\"”’'";
  * @param {number} [max]
  * @returns {{ text: string, offset: number }[]}  pieces in order; joined they are exactly `text`
  */
-export function splitInput(text, max = MAX_PIECE) {
+export function splitInput(text: string, max = MAX_PIECE): { text: string; offset: number }[] {
   if (text.length <= max) return [{ text, offset: 0 }];
   const pieces = [];
   let start = 0;
