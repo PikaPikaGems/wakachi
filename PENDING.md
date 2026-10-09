@@ -13,6 +13,10 @@
 - [ ] `wakachi/react`: `useWakachi(text)` and `useWakachiEngine()`, designed in API.md §12; React as an optional peer
       dependency. No `<Furigana>` component: API.md shows the few lines with `furiganaOf`.
 - [ ] `debugReport()` (from kakera), API.md §12.
+- [x] English part-of-speech names checked (2026-10-09) against the UniDic English tagset and SudachiDict's own
+      tag list: added the 4 missing suffix kinds (名詞的, 動詞的, 形容詞的, 形状詞的), removed 4 tags Sudachi never
+      uses, clearer wording for 非自立可能 and the 可能 tags. A test checks the list stays complete.
+- Decided: punctuation and symbols keep an empty reading (no fallback to the surface).
 - [ ] Test on a real iPhone (load, memory, speed).
 - [ ] CI: Node tests and the browser test page.
 - [ ] More reading fixes: 2,512 of jp-word-ranks-data's 37,608 kanji words still differ (most are single kanji out of

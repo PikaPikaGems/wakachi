@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { furigana, furiganaOf, groupBunsetsu, posInEnglish, posLabel, splitSentences, toHiragana } from "../src/text.js";
+import { furigana, furiganaOf, groupBunsetsu, POS_ENGLISH, posInEnglish, posLabel, splitSentences, toHiragana } from "../src/text.js";
 
 const w = (surface, reading, pos = "名詞", extra = {}) => ({ surface, reading, pos, tags: [], posDetail: ["名詞", "普通名詞", "一般", "*", "*", "*"], dictionaryForm: surface, ...extra });
 
@@ -47,4 +47,17 @@ test("toHiragana, posLabel, posInEnglish", () => {
   assert.equal(posInEnglish("名詞"), "noun");
   assert.equal(posInEnglish("固有名詞"), "proper noun");
   assert.equal(posInEnglish("知らない"), "知らない");
+});
+
+test("POS_ENGLISH covers every tag SudachiDict uses in posDetail levels 1-4", () => {
+  // read from the dictionary's part-of-speech table (1,558 combinations), SudachiDict small 20260723
+  const used = [
+    "代名詞", "副詞", "助動詞", "助詞", "動詞", "名詞", "形容詞", "形状詞", "感動詞", "接尾辞", "接続詞", "接頭辞", "空白", "補助記号", "記号", "連体詞",
+    "タリ", "フィラー", "一般", "係助詞", "副助詞", "助動詞語幹", "動詞的", "句点", "名詞的", "固有名詞", "形容詞的", "形状詞的", "括弧閉", "括弧開",
+    "接続助詞", "数詞", "文字", "普通名詞", "格助詞", "準体助詞", "終助詞", "読点", "非自立可能", "ＡＡ",
+    "サ変可能", "サ変形状詞可能", "人名", "副詞可能", "助数詞", "助数詞可能", "地名", "形状詞可能", "顔文字",
+    "名", "国", "姓",
+  ];
+  assert.deepEqual(used.filter((t) => !(t in POS_ENGLISH)), []);
+  assert.deepEqual(Object.keys(POS_ENGLISH).filter((t) => !used.includes(t) && t !== "その他"), []);
 });

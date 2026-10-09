@@ -222,7 +222,7 @@ Guarantees:
 | `接続助詞` | conjunctive particle (て, けど) |
 | `括弧開`, `括弧閉` | 「 」 ( ) |
 
-English names: `posInEnglish("名詞")` → `"noun"` (from `wakachi/text`, §9; covers every level of `posDetail` too).
+English names: `posInEnglish("名詞")` → `"noun"` (from `wakachi/text`, §9; covers levels 1–4 of `posDetail`, checked against the UniDic English tagset; the conjugation levels 5–6 stay Japanese).
 
 `posDetail` is Sudachi's own UniDic-style tag list, for anyone who needs more detail than `pos` and `tags`.
 
@@ -352,7 +352,7 @@ groupBunsetsu(words);    // → [{ surface, morphemes, head, headDictionaryForm,
 splitSentences(text);    // → [{ text, start, end }]; keeps 「行こう！」と彼は言った。 as one sentence
 toHiragana("ネコ");       // "ねこ"
 posLabel(word);          // "動詞・一般" (posLabel(word, "en") → "verb, general")
-posInEnglish("名詞");     // "noun" (any Sudachi tag; POS_ENGLISH has them all)
+posInEnglish("名詞");     // "noun" (any tag in posDetail levels 1–4; POS_ENGLISH has them all)
 ```
 
 `groupBunsetsu` is approximate (part-of-speech rules): compound nouns and some verb chains occasionally split or

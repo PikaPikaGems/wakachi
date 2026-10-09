@@ -145,7 +145,11 @@ export function splitSentences(text) {
   return out;
 }
 
-/** English names for Sudachi's part-of-speech tags (all levels). */
+/**
+ * English names for Sudachi's part-of-speech tags, levels 1 to 4 of `posDetail` (every tag SudachiDict uses there).
+ * Checked against the English tagset for UniDic, whose tags Sudachi uses (Srdanovic, checked by Ogiso, Den and
+ * Maekawa: gist.github.com/masayu-a/e3eee0637c07d4019ec9). Levels 5 and 6 (conjugation type and form) aren't here.
+ */
 export const POS_ENGLISH = Object.freeze({
   // first level: what `pos` holds
   "名詞": "noun", "代名詞": "pronoun", "動詞": "verb", "形容詞": "adjective (い)", "形状詞": "adjectival noun (な)",
@@ -153,19 +157,18 @@ export const POS_ENGLISH = Object.freeze({
   "助詞": "particle", "助動詞": "auxiliary verb", "接頭辞": "prefix", "接尾辞": "suffix",
   "補助記号": "punctuation", "記号": "symbol", "空白": "whitespace", "その他": "other",
   // what `tags` can hold
-  "固有名詞": "proper noun", "数詞": "numeral", "助数詞": "counter", "非自立可能": "dependent (helper use)",
+  "固有名詞": "proper noun", "数詞": "numeral", "助数詞": "counter", "非自立可能": "can be bound (helper use)",
   "接続助詞": "conjunctive particle", "括弧開": "opening bracket", "括弧閉": "closing bracket",
   // other levels of posDetail
   "普通名詞": "common noun", "一般": "general", "フィラー": "filler",
-  "副詞可能": "can act as adverb", "助数詞可能": "can act as counter", "サ変可能": "suru-verb capable",
-  "サ変形状詞可能": "suru-verb / な-adjective capable", "形状詞可能": "な-adjective capable",
+  "副詞可能": "can be adverbial", "助数詞可能": "can be a counter", "サ変可能": "can take する",
+  "サ変形状詞可能": "can take する or な", "形状詞可能": "can take な",
   "タリ": "tari-type", "助動詞語幹": "auxiliary stem",
+  "名詞的": "noun-like", "動詞的": "verb-like", "形容詞的": "adjective-like (い)", "形状詞的": "adjectival-noun-like (な)",
   "係助詞": "binding particle (は, も)", "格助詞": "case particle (が, を, に)",
-  "終助詞": "sentence-final particle (ね, よ)", "副助詞": "adverbial particle (だけ, まで)", "準体助詞": "nominalizing particle (の, ん)",
-  "間投助詞": "interjectory particle", "並立助詞": "parallel particle (と, や)",
-  "句点": "period", "読点": "comma", "ＡＡ": "ASCII art", "顔文字": "emoticon",
-  "地名": "place name", "人名": "person name", "国": "country", "名": "given name", "姓": "family name", "組織名": "organization",
-  "敬語": "honorific", "文字": "character",
+  "終助詞": "sentence-final particle (ね, よ)", "副助詞": "adverbial particle (だけ, まで)", "準体助詞": "nominal particle (の, ん)",
+  "句点": "period", "読点": "comma", "ＡＡ": "ASCII art", "顔文字": "emoticon", "文字": "character",
+  "地名": "place name", "人名": "person name", "国": "country", "名": "given name", "姓": "family name",
 });
 
 /** The English name of a part-of-speech tag: posInEnglish("名詞") → "noun", posInEnglish("固有名詞") → "proper noun". */
