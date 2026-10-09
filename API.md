@@ -249,8 +249,8 @@ another's.
 Sudachi's dictionary prefers formal or rare readings for some very common words, and reads numbers digit by digit.
 With `everydayReadings` (on by default) wakachi corrects them. The word fixes come from comparing Sudachi with the
 53,000 words of [jp-word-ranks-data](https://github.com/PikaPikaGems/jp-word-ranks-data): of its 37,608 words with
-kanji, Sudachi reads 2,889 differently from the list, wakachi 2,512 (top 10,000: 539 → 411). Most of the rest are
-single kanji out of context (年, 月, 方), where Sudachi's choice is fine in a sentence, and katakana words Sudachi gives
+kanji, Sudachi reads 2,682 differently from the list, wakachi 2,303 (top 10,000: 391 → 261). Most of the rest are
+single kanji out of context (等, 社, 歳), where Sudachi's choice is fine in a sentence, and katakana words Sudachi gives
 no reading.
 
 | Text | Sudachi | wakachi |

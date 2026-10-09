@@ -19,5 +19,5 @@
 - Decided: punctuation and symbols keep an empty reading (no fallback to the surface).
 - [ ] Test on a real iPhone (load, memory, speed).
 - [ ] CI: Node tests and the browser test page.
-- [ ] More reading fixes: 2,512 of jp-word-ranks-data's 37,608 kanji words still differ (most are single kanji out of
+- [ ] More reading fixes: 2,303 of jp-word-ranks-data's 37,608 kanji words still differ (261 in the top 10,000; `node scripts/check-readings.mjs`) (most are single kanji out of
       context, or katakana words with no reading). Candidates: 今日は (こんにちは), 良い (いい), 体中 (からだじゅう).
