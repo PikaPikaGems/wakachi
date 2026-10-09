@@ -70,6 +70,16 @@
   #pop .lbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; margin-top: 8px; }
   #pop .dict { font-size: 26px; font-weight: 650; line-height: 1.2; }
   #pop .yomi { color: var(--muted); }
+  #pop { width: min(420px, calc(100vw - 32px)); max-height: 70vh; overflow: auto; }
+  #pop .word { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 6px; }
+  #pop dl.fields { display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; margin: 4px 0 0; }
+  #pop dl.fields dt { font: 11.5px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--j-key); }
+  #pop dl.fields dd { margin: 0; line-height: 1.5; }
+  #pop dl.fields .val { font-weight: 600; }
+  #pop dl.fields small { color: var(--muted); margin-left: 6px; font-size: 11.5px; }
+  #pop dl.fields .tag { display: inline-block; padding: 0 6px; margin: 1px 2px 1px 0; border-radius: 6px; background: var(--btn); border: 1px solid var(--line); font-size: 12.5px; }
+  #pop dl.fields .tag + small { margin: 0 8px 0 0; }
+  #pop dl.fields .none { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
   #pop ol { margin: 4px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
   #pop li { border-top: 1px solid var(--line); padding-top: 6px; }
   #pop li b { font-size: 17px; }
@@ -163,7 +173,7 @@
     <h2 style="margin:0">Raw output</h2>
     <div class="tabs" role="tablist">
       <button role="tab" aria-selected="true" data-tab="analyze">analyze()</button>
-      <button role="tab" aria-selected="false" data-tab="bunsetsu">groupBunsetsu()</button>
+      <button role="tab" aria-selected="false" data-tab="bunsetsu">bunsetsu()</button>
       <button role="tab" aria-selected="false" data-tab="furigana">furigana()</button>
     </div>
     <button class="copy" id="copy" title="Copy the JSON"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copy</span></button>
@@ -267,11 +277,12 @@ async function render() {
     a = make({ everydayReadings: $("everyday").checked, readings: ownReadings });
     await a.load();
     const t0 = performance.now();
-    const [lines, words] = await Promise.all([a.analyzeMany(text.split("\n"), { signal: ctrl.signal }), a.analyze(text, { signal: ctrl.signal })]);
+    const [lines, words, phrases] = await Promise.all([a.analyzeMany(text.split("\n"), { signal: ctrl.signal }),
+      a.analyze(text, { signal: ctrl.signal }), a.bunsetsu(text, { signal: ctrl.signal })]);
     if (mine !== seq) return;
     $("took").textContent = `${(performance.now() - t0).toFixed(0)} ms`;
     renderReader(lines);
-    lastJson = { analyze: words, bunsetsu: groupBunsetsu(words), furigana: furiganaOf(words) };
+    lastJson = { analyze: words, bunsetsu: phrases, furigana: furiganaOf(words) };
     showJson();
   } catch (e) {
     if (e.name !== "AbortError") log(`analyze failed: ${e.code ?? e.name}: ${e.message}`);
@@ -332,27 +343,43 @@ applyView();
 const pop = $("pop");
 let pinned = null, hideTimer = null;
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+// Everything the raw output has for the phrase and each of its words, with English for the part-of-speech tags.
 function showPop(span) {
   clearTimeout(hideTimer);
   const g = span._group;
-  pop.replaceChildren(el("div", "lbl", "Dictionary form"), el("div", "dict", g.headDictionaryForm));
-  const norm = g.head.map((w) => w.normalizedForm || w.surface).join("");
-  if (norm !== g.headDictionaryForm) pop.append(el("div", "lbl", `Normalized: ${norm}`));
-  pop.append(el("div", "lbl", "Parts"));
-  const ol = el("ol");
+  const en = (t) => (t === "*" || posInEnglish(t) === t ? "" : posInEnglish(t)); // no note when there's no English name
+  const field = (dl, key, value, note) => {
+    dl.append(el("dt", null, key));
+    const dd = el("dd");
+    if (Array.isArray(value)) {
+      if (!value.length) dd.append(el("span", "none", "[]"));
+      for (const v of value) { const c = el("span", "tag", v); if (note?.(v)) c.title = note(v); dd.append(c, note?.(v) ? el("small", null, note(v)) : ""); }
+    } else {
+      dd.append(el("span", "val", value === "" ? '""' : String(value)));
+      if (note) dd.append(el("small", null, note));
+    }
+    dl.append(dd);
+  };
+  pop.replaceChildren(el("div", "lbl", "Phrase (bunsetsu)"), el("div", "dict", g.surface));
+  const head = el("dl", "fields");
+  field(head, "headDictionaryForm", g.headDictionaryForm);
+  field(head, "head", g.head.map((w) => w.surface).join(" + "), "its main word(s), from morphemes");
+  field(head, "start, end", `${g.start}, ${g.end}`);
+  pop.append(head, el("div", "lbl", `morphemes (${g.morphemes.length})`));
   for (const w of g.morphemes) {
-    const li = el("li");
-    li.append(el("b", null, w.surface));
-    if (w.dictionaryForm && w.dictionaryForm !== w.surface) li.append(el("span", "arrow", "→"), w.dictionaryForm);
-    if (w.reading) li.append(el("span", "yomi", `  ${toHiragana(w.reading)}`));
-    const pos = el("span", "pos", `${posLabel(w)} — ${posLabel(w, "en")}`);
-    // tags the label doesn't already show (it shows the first two levels of posDetail)
-    const extra = w.tags.filter((t) => !w.posDetail.slice(0, 2).includes(t));
-    if (extra.length) pos.append(el("span", "also", ` · also: ${extra.map((t) => `${t} (${posInEnglish(t)})`).join(", ")}`));
-    li.append(pos);
-    ol.append(li);
+    const box = el("div", "word");
+    const dl = el("dl", "fields");
+    field(dl, "surface", w.surface);
+    field(dl, "reading", w.reading, w.reading ? toHiragana(w.reading) : "none (punctuation, symbols, Latin)");
+    field(dl, "dictionaryForm", w.dictionaryForm);
+    field(dl, "normalizedForm", w.normalizedForm);
+    field(dl, "pos", w.pos, posInEnglish(w.pos));
+    field(dl, "tags", w.tags, en);
+    field(dl, "posDetail", w.posDetail, en);
+    field(dl, "start, end", `${w.start}, ${w.end}`);
+    box.append(dl);
+    pop.append(box);
   }
-  pop.append(ol);
   pop.hidden = false;
   const r = span.getBoundingClientRect();
   const left = Math.max(8, Math.min(scrollX + r.left, scrollX + document.documentElement.clientWidth - pop.offsetWidth - 8));
@@ -403,7 +430,7 @@ function highlight(json) {
 }
 const HINTS = {
   analyze: "await analyzer.analyze(text): every word with its reading (katakana), dictionary form, part of speech and position.",
-  bunsetsu: "groupBunsetsu(await analyzer.analyze(text)) from wakachi/text: the phrases (文節), each with its words (morphemes) and its main word (head, repeated from morphemes), as the reading view shows them.",
+  bunsetsu: "await analyzer.bunsetsu(text): the phrases (文節) the reading view shows, each with its words (morphemes) and its main word (head, repeated from morphemes).",
   furigana: "await analyzer.furigana(text): the text in pieces, with a reading (hiragana) on the kanji and numbers.",
 };
 function showJson() {
@@ -503,6 +530,14 @@ $("run").onclick = async () => {
     eq(r.map((s) => s.text).join(""), text, "joined");
     eq(JSON.stringify(r.slice(0, 2)), JSON.stringify([{ text: "食", reading: "た" }, { text: "べた" }]), "okurigana");
     assert(r.some((s) => s.text === "母" && s.reading === "かあ"), "お母さん");
+  });
+
+  await t("bunsetsu(): phrases with their words, joined back they are the text", async () => {
+    const text = "猫が好きです。";
+    const g = await a.bunsetsu(text);
+    eq(JSON.stringify(g.map((x) => x.surface)), JSON.stringify(["猫が", "好きです。"]), "phrases");
+    eq(g[1].headDictionaryForm, "好き", "head");
+    eq(g.map((x) => x.morphemes.map((w) => w.surface).join("")).join(""), text, "words join to the text");
   });
 
   await t("readings option and everydayReadings: false (per analyzer, same Sudachi)", async () => {

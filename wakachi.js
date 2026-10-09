@@ -1165,6 +1165,72 @@ function furiganaOf(words) {
   }
   return out;
 }
+function groupBunsetsu(words) {
+  const groups = [];
+  let cur = null;
+  let attachNext = false;
+  const start = (w) => {
+    cur = { morphemes: [w] };
+    groups.push(cur);
+  };
+  const add = (w) => cur ? cur.morphemes.push(w) : start(w);
+  for (const w of words) {
+    if (w.pos === "\u7A7A\u767D" || !w.surface.trim()) {
+      cur = null;
+      attachNext = false;
+      continue;
+    }
+    const prev = cur?.morphemes.at(-1);
+    if (w.tags.includes("\u62EC\u5F27\u958B")) {
+      start(w);
+      attachNext = true;
+      continue;
+    }
+    if (w.pos === "\u88DC\u52A9\u8A18\u53F7" || w.pos === "\u8A18\u53F7") {
+      add(w);
+      attachNext = false;
+      continue;
+    }
+    if (w.pos === "\u63A5\u982D\u8F9E") {
+      start(w);
+      attachNext = true;
+      continue;
+    }
+    if (attachNext && cur) {
+      cur.morphemes.push(w);
+      attachNext = false;
+      continue;
+    }
+    attachNext = false;
+    if (w.pos === "\u52A9\u8A5E" || w.pos === "\u52A9\u52D5\u8A5E" || w.pos === "\u63A5\u5C3E\u8F9E") {
+      add(w);
+      continue;
+    }
+    if (cur && prev) {
+      const helper = w.tags.includes("\u975E\u81EA\u7ACB\u53EF\u80FD") && (w.pos === "\u52D5\u8A5E" || w.pos === "\u5F62\u5BB9\u8A5E") && (prev.pos === "\u52D5\u8A5E" || prev.pos === "\u52A9\u52D5\u8A5E" || prev.pos === "\u5F62\u5BB9\u8A5E" || prev.tags.includes("\u63A5\u7D9A\u52A9\u8A5E"));
+      const counter = w.pos === "\u540D\u8A5E" && (w.tags.includes("\u6570\u8A5E") || w.tags.includes("\u52A9\u6570\u8A5E")) && prev.tags.includes("\u6570\u8A5E");
+      const nameSuffix = w.pos === "\u540D\u8A5E" && [...w.surface].length === 1 && KANJI.test(w.surface) && prev.pos === "\u540D\u8A5E" && prev.tags.includes("\u56FA\u6709\u540D\u8A5E");
+      if (helper || counter || nameSuffix) {
+        cur.morphemes.push(w);
+        continue;
+      }
+    }
+    start(w);
+  }
+  const NON_HEAD = /* @__PURE__ */ new Set(["\u52A9\u8A5E", "\u52A9\u52D5\u8A5E", "\u63A5\u5C3E\u8F9E", "\u88DC\u52A9\u8A18\u53F7", "\u8A18\u53F7", "\u63A5\u982D\u8F9E"]);
+  return groups.map(({ morphemes }) => {
+    const i = morphemes.findIndex((w) => !NON_HEAD.has(w.pos));
+    const head = i < 0 ? [morphemes[0]] : morphemes.slice(0, i + 1);
+    return {
+      surface: morphemes.map((w) => w.surface).join(""),
+      morphemes,
+      head,
+      headDictionaryForm: head.map((w) => w.dictionaryForm || w.surface).join(""),
+      start: morphemes[0].start,
+      end: morphemes.at(-1).end
+    };
+  });
+}
 var POS_ENGLISH = Object.freeze({
   // first level: what `pos` holds
   "\u540D\u8A5E": "noun",
@@ -1298,6 +1364,10 @@ function createAnalyzer(options = {}) {
     analyze,
     /** Many texts in one trip to the worker; result i belongs to text i. */
     analyzeMany,
+    /** Phrases (文節) of `text`, each with its words: groupBunsetsu() of analyze(). */
+    async bunsetsu(text, o) {
+      return groupBunsetsu(await analyze(text, o));
+    },
     /** Furigana for `text`: [{ text, reading? }]; joining every `text` gives back the input. */
     async furigana(text, o) {
       return furiganaOf(await analyze(text, o));
