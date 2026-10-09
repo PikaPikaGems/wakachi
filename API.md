@@ -10,7 +10,7 @@ downloaded once (in parts, so any static host works) and kept on the device.
 |---|---|
 | `wakachi` | `createAnalyzer`, `AnalyzerError`, `VERSION`, types |
 | `wakachi/text` | Furigana, bunsetsu, sentence splitting: pure functions, no worker, no dictionary (§9) |
-| `wakachi/react` *(later)* | `useAnalysis(text)`, `<Furigana text>` |
+| `wakachi/react` *(later)* | `useWakachi(text)`, `useWakachiEngine()` |
 
 The quickest possible use:
 
@@ -372,7 +372,67 @@ merge oddly.
 Types come with the package (`types/index.d.ts`, `types/text.d.ts`): `Morpheme`, `RubySegment`, `AnalyzerOptions`,
 `LoadProgress`, `AnalyzerError` and the rest.
 
-## 12. React *(later)*
+## 12. React *(planned, not built yet)*
 
-`wakachi/react` will wrap the analyzer: `useAnalysis(text)` (cancels its own outdated calls, renders long results in
-batches) and `<Furigana text>`. React will be an optional peer dependency, so plain-JS apps never need it.
+`wakachi/react`, with React as an optional peer dependency (plain-JS apps never need it). Two hooks:
+`useWakachi(text)` where the text is shown, `useWakachiEngine()` to manage the download and memory.
+
+**Nothing downloads or loads by itself.** The dictionary is a 45 MB download and ~135 MB of memory, so only `load()`
+starts it, from something the user chose (a "Download dictionary" button). Every component shares one dictionary:
+load it in one place, analyze in any other.
+
+```tsx
+import { useWakachi } from "wakachi/react";
+import { furiganaOf } from "wakachi/text";
+
+function Reader({ text }) {
+  const w = useWakachi(text);                         // options: everydayReadings, readings, filesUrl, ...
+
+  switch (w.status) {
+    case "not-loaded":  return <button onClick={w.load}>{w.cached ? "Turn on furigana" : `Download dictionary (${w.downloadMB} MB)`}</button>;
+    case "loading":     return <progress value={w.progress.fraction} />;   // downloading or preparing
+    case "unavailable": return <p>{text}</p>;                              // loading crashed this device before (§8)
+    case "error":       return <p>{w.error.message} <button onClick={w.retry}>Retry</button></p>;
+    case "done":        return <p>{furiganaOf(w.words).map((s, i) =>
+                          s.reading ? <ruby key={i}>{s.text}<rt>{s.reading}</rt></ruby> : s.text)}</p>;
+  }
+}
+```
+
+| `status` | Fields |
+|---|---|
+| `"not-loaded"` | `load`, `cached`, `downloadMB` |
+| `"loading"` | `progress` (`stage` is `"downloading"` or `"preparing"`) |
+| `"done"` | `words`, `bunsetsu`, `furigana`, `stale` (`true` while a newer `text` is being analyzed; the previous result stays so nothing flickers) |
+| `"unavailable"` | `reason` |
+| `"error"` | `error`, `retry` |
+
+The fields exist only in their status, so TypeScript catches using `words` before they exist. Outdated calls are
+dropped when `text` changes. After the memory was freed (a minute unused, the page hidden, `unload()`), `status` is
+`"loading"` for a moment: it reloads from the device, no download. Furigana styling is plain CSS:
+`rt { font-size: 0.5em; color: #888; }`.
+
+`useWakachiEngine(options?)` is for a settings page: what is on the device and in memory, with buttons to
+change it. yomiage's `useYomiageEngine()` returns the same shape, so one settings row works for both.
+
+```tsx
+const e = useWakachiEngine();
+e.status        // "not-loaded" | "downloading" | "loading" | "ready" | "stopped" | "unavailable" | "error"
+e.cached        // the files are on this device
+e.downloadMB    // 45
+e.progress      // { stage, fraction, ... } while loading, otherwise null
+e.error         // the last error, or null
+e.load()        // download if needed, then load into memory
+e.unload()      // free the memory, keep the files
+e.clearCache()  // delete the files from this device
+e.debugReport() // text to paste into a bug report (planned, see below)
+```
+
+See yomiage's API.md §11 for a settings row that works with both.
+
+### Debug report *(planned)*
+
+`analyzer.debugReport()` (and `e.debugReport()` in React) will return a block of text for bug reports: versions,
+browser and device, the files address and manifest version, status and the last error (code, message, cause), which
+parts are on the device, storage used, the crash guard's record, and the log of the last load with timings. It never
+includes the analyzed text. Shared with yomiage through kakera.

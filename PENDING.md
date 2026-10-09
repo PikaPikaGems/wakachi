@@ -10,7 +10,9 @@
 - [x] Demo site: https://pikapikagems.github.io/wakachi/ (`npm run publish:demo` updates it).
 - [x] First release: v0.1.0 (pre-release, 2026-10-09) with the tarball and `files/`; the playground installs from it.
       Next releases: bump the version, `npm pack`, `gh release create v<version> wakachi-<version>.tgz files/*`.
-- [ ] `wakachi/react`: `useAnalysis(text)`, `<Furigana text>`; React as an optional peer dependency.
+- [ ] `wakachi/react`: `useWakachi(text)` and `useWakachiEngine()`, designed in API.md §12; React as an optional peer
+      dependency. No `<Furigana>` component: API.md shows the few lines with `furiganaOf`.
+- [ ] `debugReport()` (from kakera), API.md §12.
 - [ ] Test on a real iPhone (load, memory, speed).
 - [ ] CI: Node tests and the browser test page.
 - [ ] More reading fixes: 2,512 of jp-word-ranks-data's 37,608 kanji words still differ (most are single kanji out of
