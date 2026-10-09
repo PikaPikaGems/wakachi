@@ -425,14 +425,15 @@ e.error         // the last error, or null
 e.load()        // download if needed, then load into memory
 e.unload()      // free the memory, keep the files
 e.clearCache()  // delete the files from this device
-e.debugReport() // text to paste into a bug report (planned, see below)
+e.debugReport() // text to paste into a bug report
 ```
 
 See yomiage's API.md §11 for a settings row that works with both.
 
-### Debug report *(planned)*
+### Debug report
 
-`analyzer.debugReport()` (and `e.debugReport()` in React) will return a block of text for bug reports: versions,
-browser and device, the files address and manifest version, status and the last error (code, message, cause), which
-parts are on the device, storage used, the crash guard's record, and the log of the last load with timings. It never
-includes the analyzed text. Shared with yomiage through kakera.
+`analyzer.debugReport()` returns plain text that can be pasted into a bug report. It includes package and kakera
+versions, browser and device details, the files address and manifest version, status, the last load error and its
+causes, which file parts are on the device, storage estimates, the crash-guard record, and the last load's log and
+timings. It never includes analyzed text. The shared report is provided by kakera. A future React engine hook will
+expose the same report as `e.debugReport()`.

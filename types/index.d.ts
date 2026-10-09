@@ -151,6 +151,9 @@ export interface Analyzer {
   /** Is the dictionary on this device, and how big is the download if not? Reads the small manifest file. */
   info(): Promise<FilesInfo>;
 
+  /** Plain-text, privacy-safe diagnostics for a bug report. Never includes analyzed text. */
+  debugReport(): Promise<string>;
+
   /**
    * Download (first time) or read from the device, start Sudachi and warm it up. Resolves when calls are fast.
    * Calling it again while loading returns the same promise; calling it when ready resolves immediately.

@@ -9,6 +9,8 @@ analyzer.on("status", (s) => s === "ready");
 analyzer.on("log", (line) => line.toUpperCase());
 
 async function use() {
+  const report: string = await analyzer.debugReport();
+  console.log(report);
   const { cached, downloadMB } = await analyzer.info();
   if (!cached) console.log(downloadMB);
   const { fromCache, timings } = await analyzer.load();
