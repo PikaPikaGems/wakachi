@@ -67,6 +67,9 @@ export function createAnalyzer(options = {}) {
     /** { cached, downloadBytes, downloadMB } without downloading anything. */
     info: () => handle.info(),
 
+    /** Plain-text report for bug reports. Never includes analyzed text. */
+    debugReport: () => handle.debugReport({ packageName: "wakachi", packageVersion: VERSION }),
+
     /** Download (first time) and start Sudachi. Resolves { fromCache, ms, timings }. */
     async load() {
       const res = await handle.load();

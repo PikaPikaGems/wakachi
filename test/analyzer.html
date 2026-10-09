@@ -126,6 +126,7 @@
     <button id="load">Load dictionary</button>
     <button id="unload">Unload</button>
     <button id="clear">Delete files from device</button>
+    <button id="debug">Copy debug report</button>
   </div>
   <dl class="defs">
     <dt>Load dictionary <code>analyzer.load()</code></dt>
@@ -263,6 +264,17 @@ $("clear").onclick = async () => {
   await analyzer.clearCache();
   log("files deleted from this device");
   analyzer.info().then(({ downloadMB }) => { $("size").textContent = `${downloadMB} MB to download`; });
+};
+$("debug").onclick = async () => {
+  try {
+    const report = await analyzer.debugReport();
+    try { await navigator.clipboard.writeText(report); }
+    catch {
+      const area = document.createElement("textarea"); area.value = report; area.style.position = "fixed"; area.style.opacity = "0";
+      document.body.append(area); area.select(); document.execCommand("copy"); area.remove();
+    }
+    log("debug report copied to clipboard");
+  } catch (e) { log(`could not make debug report: ${e.message}`); }
 };
 
 // ------------------------------------------------------------------------------------------------ reading view

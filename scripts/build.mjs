@@ -9,7 +9,8 @@ import { build } from "esbuild";
 
 const root = new URL("../", import.meta.url);
 const pkg = JSON.parse(fs.readFileSync(new URL("package.json", root)));
-const define = { __WAKACHI_VERSION__: JSON.stringify(pkg.version) };
+const kakera = JSON.parse(fs.readFileSync(new URL("../kakera/package.json", root)));
+const define = { __WAKACHI_VERSION__: JSON.stringify(pkg.version), __KAKERA_VERSION__: JSON.stringify(kakera.version) };
 const banner = { js: `/*! wakachi ${pkg.version} worker (MIT). Runs Sudachi (Apache-2.0); see THIRD-PARTY-LICENSES.md next to this file. */` };
 const common = { bundle: true, format: "esm", platform: "browser", target: "es2022", define, logLevel: "warning", absWorkingDir: root.pathname };
 

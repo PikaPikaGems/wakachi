@@ -1,5 +1,7 @@
 # Pending
 
+- [x] Shared `debugReport()` for bug reports (2026-10-09).
+
 - [x] **Files on another host** (2026-10-09): `filesUrl` can be another site that sends CORS headers; kakera starts
       the worker through a small same-origin script. Tested with two local origins.
 - [x] **Speed** (2026-10-09): the npm Sudachi build (2021) rebuilt its dictionary on every call (~125 ms) and was a debug
