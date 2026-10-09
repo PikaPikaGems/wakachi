@@ -1,0 +1,34 @@
+# Node tests and type checks on every push and pull request. kakera is checked out next to wakachi, where
+# package.json expects it (file:../kakera). The Sudachi build that `npm run files` downloads is cached between runs.
+name: Test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  node:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: wakachi
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: wakachi
+      - uses: actions/checkout@v4
+        with:
+          repository: PikaPikaGems/kakera
+          path: kakera
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/cache@v4
+        with:
+          path: wakachi/.cache
+          key: sudachi-${{ hashFiles('wakachi/scripts/sudachi-build.mjs') }}
+      - run: npm ci
+      - run: npm run build
+      - run: npm run files
+      - run: npm test
+      - run: npm run test:types
