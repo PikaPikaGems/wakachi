@@ -1,0 +1,78 @@
+{
+  "format": "kakera/1",
+  "name": "wakachi-sudachi",
+  "version": "4e332ddd5150",
+  "downloadSize": 44386463,
+  "files": [
+    {
+      "name": "sudachi.wasm",
+      "size": 1151221,
+      "gzip": true,
+      "parts": [
+        {
+          "file": "sudachi.wasm.part001.gz",
+          "size": 316804,
+          "rawSize": 1151221,
+          "sha256": "2a20ade978797741b42248e3495c9eb111fdcba9ed5c4f7ce85024dbd430fd3d"
+        }
+      ]
+    },
+    {
+      "name": "dict.bin",
+      "size": 122099366,
+      "gzip": true,
+      "parts": [
+        {
+          "file": "dict.bin.part001.gz",
+          "size": 9914229,
+          "rawSize": 20971520,
+          "sha256": "f399f5ca0315a602ee9ef162657d056408ff20f652f6f541a8ebc65317a8b6b9"
+        },
+        {
+          "file": "dict.bin.part002.gz",
+          "size": 5652778,
+          "rawSize": 20971520,
+          "sha256": "0060d62d05dddf4cfbe0e8165b1e743a1f5ef01130188a323984364e240f3f04"
+        },
+        {
+          "file": "dict.bin.part003.gz",
+          "size": 7810147,
+          "rawSize": 20971520,
+          "sha256": "e480331c1f4b88b3f256675036d0c56c0885cc81caa796e8aee6250e31644933"
+        },
+        {
+          "file": "dict.bin.part004.gz",
+          "size": 9923211,
+          "rawSize": 20971520,
+          "sha256": "a42e69378b0bf2a1bbbbf426ad7d9bb43e8c1499ac7df823ea9d849cd11865b5"
+        },
+        {
+          "file": "dict.bin.part005.gz",
+          "size": 6671361,
+          "rawSize": 20971520,
+          "sha256": "efe7bde65cd3f85d08ff7c8db4ea21e6894151a02d6a8db0e96bc8be16602199"
+        },
+        {
+          "file": "dict.bin.part006.gz",
+          "size": 4097933,
+          "rawSize": 17241766,
+          "sha256": "fb60ccd9f49178a792417a80ec386fd22cf82978d54c41789ee31a82a139e18a"
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "wakachi": "0.1.0",
+    "sudachi": "sudachi@0.1.5",
+    "segments": [
+      {
+        "offset": 1048576,
+        "length": 122099358
+      },
+      {
+        "offset": 123147936,
+        "length": 8
+      }
+    ]
+  }
+}
