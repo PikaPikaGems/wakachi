@@ -54,23 +54,23 @@ function groupBunsetsu(words) {
   };
   const add = (w) => cur ? cur.morphemes.push(w) : start(w);
   for (const w of words) {
-    if (w.pos === "whitespace" || !w.surface.trim()) {
+    if (w.pos === "\u7A7A\u767D" || !w.surface.trim()) {
       cur = null;
       attachNext = false;
       continue;
     }
     const prev = cur?.morphemes.at(-1);
-    if (w.tags.includes("bracket-open")) {
+    if (w.tags.includes("\u62EC\u5F27\u958B")) {
       start(w);
       attachNext = true;
       continue;
     }
-    if (w.pos === "punctuation" || w.pos === "symbol") {
+    if (w.pos === "\u88DC\u52A9\u8A18\u53F7" || w.pos === "\u8A18\u53F7") {
       add(w);
       attachNext = false;
       continue;
     }
-    if (w.pos === "prefix") {
+    if (w.pos === "\u63A5\u982D\u8F9E") {
       start(w);
       attachNext = true;
       continue;
@@ -81,14 +81,14 @@ function groupBunsetsu(words) {
       continue;
     }
     attachNext = false;
-    if (w.pos === "particle" || w.pos === "auxiliary" || w.pos === "suffix") {
+    if (w.pos === "\u52A9\u8A5E" || w.pos === "\u52A9\u52D5\u8A5E" || w.pos === "\u63A5\u5C3E\u8F9E") {
       add(w);
       continue;
     }
     if (cur && prev) {
-      const helper = w.tags.includes("dependent") && (w.pos === "verb" || w.pos === "adjective") && (prev.pos === "verb" || prev.pos === "auxiliary" || prev.pos === "adjective" || prev.tags.includes("conjunctive"));
-      const counter = w.pos === "noun" && (w.tags.includes("numeral") || w.tags.includes("counter")) && prev.tags.includes("numeral");
-      const nameSuffix = w.pos === "noun" && [...w.surface].length === 1 && KANJI.test(w.surface) && prev.pos === "noun" && prev.tags.includes("proper");
+      const helper = w.tags.includes("\u975E\u81EA\u7ACB\u53EF\u80FD") && (w.pos === "\u52D5\u8A5E" || w.pos === "\u5F62\u5BB9\u8A5E") && (prev.pos === "\u52D5\u8A5E" || prev.pos === "\u52A9\u52D5\u8A5E" || prev.pos === "\u5F62\u5BB9\u8A5E" || prev.tags.includes("\u63A5\u7D9A\u52A9\u8A5E"));
+      const counter = w.pos === "\u540D\u8A5E" && (w.tags.includes("\u6570\u8A5E") || w.tags.includes("\u52A9\u6570\u8A5E")) && prev.tags.includes("\u6570\u8A5E");
+      const nameSuffix = w.pos === "\u540D\u8A5E" && [...w.surface].length === 1 && KANJI.test(w.surface) && prev.pos === "\u540D\u8A5E" && prev.tags.includes("\u56FA\u6709\u540D\u8A5E");
       if (helper || counter || nameSuffix) {
         cur.morphemes.push(w);
         continue;
@@ -96,7 +96,7 @@ function groupBunsetsu(words) {
     }
     start(w);
   }
-  const NON_HEAD = /* @__PURE__ */ new Set(["particle", "auxiliary", "suffix", "punctuation", "symbol", "prefix"]);
+  const NON_HEAD = /* @__PURE__ */ new Set(["\u52A9\u8A5E", "\u52A9\u52D5\u8A5E", "\u63A5\u5C3E\u8F9E", "\u88DC\u52A9\u8A18\u53F7", "\u8A18\u53F7", "\u63A5\u982D\u8F9E"]);
   return groups.map(({ morphemes }) => {
     const i = morphemes.findIndex((w) => !NON_HEAD.has(w.pos));
     const head = i < 0 ? [morphemes[0]] : morphemes.slice(0, i + 1);
@@ -145,40 +145,46 @@ function splitSentences(text) {
   flush(text.length);
   return out;
 }
-var POS_EN = {
-  "\u540D\u8A5E": "Noun",
-  "\u4EE3\u540D\u8A5E": "Pronoun",
-  "\u52D5\u8A5E": "Verb",
-  "\u5F62\u5BB9\u8A5E": "Adjective (\u3044-adj)",
-  "\u5F62\u72B6\u8A5E": "Adjectival noun (\u306A-adj stem)",
-  "\u526F\u8A5E": "Adverb",
-  "\u9023\u4F53\u8A5E": "Pre-noun adjectival",
-  "\u63A5\u7D9A\u8A5E": "Conjunction",
-  "\u611F\u52D5\u8A5E": "Interjection",
-  "\u52A9\u8A5E": "Particle",
-  "\u52A9\u52D5\u8A5E": "Auxiliary verb",
-  "\u63A5\u982D\u8F9E": "Prefix",
-  "\u63A5\u5C3E\u8F9E": "Suffix",
-  "\u88DC\u52A9\u8A18\u53F7": "Punctuation / symbol",
-  "\u8A18\u53F7": "Symbol",
-  "\u7A7A\u767D": "Whitespace",
-  "\u30D5\u30A3\u30E9\u30FC": "Filler (um, uh)",
-  "\u305D\u306E\u4ED6": "Other",
-  "\u666E\u901A\u540D\u8A5E": "common noun",
+var POS_ENGLISH = Object.freeze({
+  // first level: what `pos` holds
+  "\u540D\u8A5E": "noun",
+  "\u4EE3\u540D\u8A5E": "pronoun",
+  "\u52D5\u8A5E": "verb",
+  "\u5F62\u5BB9\u8A5E": "adjective (\u3044)",
+  "\u5F62\u72B6\u8A5E": "adjectival noun (\u306A)",
+  "\u526F\u8A5E": "adverb",
+  "\u9023\u4F53\u8A5E": "adnominal",
+  "\u63A5\u7D9A\u8A5E": "conjunction",
+  "\u611F\u52D5\u8A5E": "interjection",
+  "\u52A9\u8A5E": "particle",
+  "\u52A9\u52D5\u8A5E": "auxiliary verb",
+  "\u63A5\u982D\u8F9E": "prefix",
+  "\u63A5\u5C3E\u8F9E": "suffix",
+  "\u88DC\u52A9\u8A18\u53F7": "punctuation",
+  "\u8A18\u53F7": "symbol",
+  "\u7A7A\u767D": "whitespace",
+  "\u305D\u306E\u4ED6": "other",
+  // what `tags` can hold
   "\u56FA\u6709\u540D\u8A5E": "proper noun",
   "\u6570\u8A5E": "numeral",
+  "\u52A9\u6570\u8A5E": "counter",
+  "\u975E\u81EA\u7ACB\u53EF\u80FD": "dependent (helper use)",
+  "\u63A5\u7D9A\u52A9\u8A5E": "conjunctive particle",
+  "\u62EC\u5F27\u958B": "opening bracket",
+  "\u62EC\u5F27\u9589": "closing bracket",
+  // other levels of posDetail
+  "\u666E\u901A\u540D\u8A5E": "common noun",
   "\u4E00\u822C": "general",
+  "\u30D5\u30A3\u30E9\u30FC": "filler",
   "\u526F\u8A5E\u53EF\u80FD": "can act as adverb",
   "\u52A9\u6570\u8A5E\u53EF\u80FD": "can act as counter",
   "\u30B5\u5909\u53EF\u80FD": "suru-verb capable",
-  "\u30B5\u5909\u5F62\u72B6\u8A5E\u53EF\u80FD": "suru-verb / na-adj capable",
-  "\u5F62\u72B6\u8A5E\u53EF\u80FD": "na-adjective capable",
-  "\u975E\u81EA\u7ACB\u53EF\u80FD": "can be non-independent (auxiliary use)",
+  "\u30B5\u5909\u5F62\u72B6\u8A5E\u53EF\u80FD": "suru-verb / \u306A-adjective capable",
+  "\u5F62\u72B6\u8A5E\u53EF\u80FD": "\u306A-adjective capable",
   "\u30BF\u30EA": "tari-type",
   "\u52A9\u52D5\u8A5E\u8A9E\u5E79": "auxiliary stem",
   "\u4FC2\u52A9\u8A5E": "binding particle (\u306F, \u3082)",
   "\u683C\u52A9\u8A5E": "case particle (\u304C, \u3092, \u306B)",
-  "\u63A5\u7D9A\u52A9\u8A5E": "conjunctive particle (\u3066, \u3051\u3069)",
   "\u7D42\u52A9\u8A5E": "sentence-final particle (\u306D, \u3088)",
   "\u526F\u52A9\u8A5E": "adverbial particle (\u3060\u3051, \u307E\u3067)",
   "\u6E96\u4F53\u52A9\u8A5E": "nominalizing particle (\u306E, \u3093)",
@@ -186,8 +192,6 @@ var POS_EN = {
   "\u4E26\u7ACB\u52A9\u8A5E": "parallel particle (\u3068, \u3084)",
   "\u53E5\u70B9": "period",
   "\u8AAD\u70B9": "comma",
-  "\u62EC\u5F27\u958B": "opening bracket",
-  "\u62EC\u5F27\u9589": "closing bracket",
   "\uFF21\uFF21": "ASCII art",
   "\u9854\u6587\u5B57": "emoticon",
   "\u5730\u540D": "place name",
@@ -198,15 +202,18 @@ var POS_EN = {
   "\u7D44\u7E54\u540D": "organization",
   "\u656C\u8A9E": "honorific",
   "\u6587\u5B57": "character"
-};
-function posLabel(word, lang = "en") {
+});
+var posInEnglish = (tag) => POS_ENGLISH[tag] ?? tag;
+function posLabel(word, lang = "ja") {
   const tags = (word.posDetail ?? []).slice(0, 2).filter((t) => t && t !== "*");
-  return lang === "ja" ? tags.join("\u30FB") : tags.map((t) => POS_EN[t] ?? t).join(", ");
+  return lang === "ja" ? tags.join("\u30FB") : tags.map(posInEnglish).join(", ");
 }
 export {
+  POS_ENGLISH,
   furigana,
   furiganaOf,
   groupBunsetsu,
+  posInEnglish,
   posLabel,
   splitSentences,
   toHiragana

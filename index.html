@@ -3,62 +3,179 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Wakachi Test Page</title>
+<title>Wakachi Demo</title>
 <style>
-  :root { --bg: #fff; --fg: #1a1a1a; --muted: #666; --line: #ddd; --ok: #15803d; --bad: #b91c1c; --btn: #f4f4f5; --code: #f4f4f5; --ruby: #6b7280; }
-  @media (prefers-color-scheme: dark) { :root { --bg: #111; --fg: #eee; --muted: #999; --line: #333; --ok: #4ade80; --bad: #f87171; --btn: #222; --code: #1c1c1f; --ruby: #9ca3af; } }
+  :root {
+    --bg: #fff; --fg: #1a1a1a; --muted: #666; --line: #e3e3e6; --card: #fafafa; --ok: #15803d; --bad: #b91c1c;
+    --btn: #f4f4f5; --code: #f6f8fa; --hl: rgba(80, 140, 255, .18); --accent: #2563eb; --ruby: #6b7280;
+    --pos-noun: #0b62c4; --pos-pronoun: #0f766e; --pos-verb: #1a7f37; --pos-adj: #b45309; --pos-adjnoun: #8a6d00;
+    --pos-adverb: #7e3ac2; --pos-adnominal: #b3237a; --pos-conj: #4b4fb3; --pos-interj: #cf222e;
+    --j-key: #0550ae; --j-str: #0a3069; --j-num: #953800; --j-punct: #6e7781;
+  }
+  @media (prefers-color-scheme: dark) { :root {
+    --bg: #111214; --fg: #e8e8ea; --muted: #9a9aa2; --line: #2c2d31; --card: #17181b; --ok: #4ade80; --bad: #f87171;
+    --btn: #222327; --code: #0d1117; --hl: rgba(80, 140, 255, .28); --accent: #6ea8fe; --ruby: #a1a1aa;
+    --pos-noun: #6cb6ff; --pos-pronoun: #5eead4; --pos-verb: #7ee787; --pos-adj: #ffa657; --pos-adjnoun: #e3b341;
+    --pos-adverb: #d2a8ff; --pos-adnominal: #ff9bce; --pos-conj: #b8c0ff; --pos-interj: #ff7b72;
+    --j-key: #79c0ff; --j-str: #a5d6ff; --j-num: #ffa657; --j-punct: #8b949e;
+  } }
   * { box-sizing: border-box; }
-  body { background: var(--bg); color: var(--fg); font: 16px/1.5 -apple-system, system-ui, sans-serif; margin: 0 auto; padding: 16px; max-width: 720px; }
-  h1 { font-size: 20px; margin: 0 0 4px; } h2 { font-size: 16px; margin: 20px 0 8px; }
+  body { background: var(--bg); color: var(--fg); font: 16px/1.5 -apple-system, system-ui, "Hiragino Sans", sans-serif; margin: 0 auto; padding: 16px; max-width: 820px; }
+  h1 { font-size: 22px; margin: 0; } h2 { font-size: 15px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
   p, small { color: var(--muted); }
-  button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--btn); color: var(--fg); }
-  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
-  textarea { width: 100%; min-height: 110px; font: inherit; padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
-  .setting { margin: 10px 0; }
+  a { color: var(--accent); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin: 14px 0; }
+  button, select, input[type=text] { font: inherit; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--btn); color: var(--fg); }
+  button { cursor: pointer; } button:disabled { opacity: .5; cursor: default; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 8px 0; }
+  textarea { width: 100%; min-height: 96px; font: inherit; font-size: 17px; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); resize: vertical; }
   .hint { display: block; color: var(--muted); font-size: 13px; line-height: 1.4; margin-top: 2px; }
-  progress { width: 100%; }
-  #out { padding: 8px; border: 1px solid var(--line); border-radius: 8px; min-height: 2em; font-size: 20px; line-height: 2.2; white-space: pre-wrap; }
-  rt { color: var(--ruby); font-size: 11px; }
-  table { border-collapse: collapse; font-size: 13px; width: 100%; } td, th { border-bottom: 1px solid var(--line); padding: 2px 6px; text-align: left; }
-  #words { max-height: 260px; overflow: auto; display: block; }
-  pre { background: var(--code); border-radius: 6px; padding: 8px; white-space: pre-wrap; font-size: 13px; max-height: 240px; overflow: auto; }
+  .opts { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; margin-top: 10px; }
+  @media (max-width: 640px) { .opts { grid-template-columns: 1fr; } }
+  .opts input[type=text] { width: 100%; }
+  progress { width: 100%; height: 8px; }
+  #status { font-weight: 600; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--btn); border: 1px solid var(--line); font-size: 13px; }
+
+  /* reading view */
+  #reader-out { font-size: 24px; line-height: 2.6; min-height: 2.6em; word-break: keep-all; }
+  #reader-out .line:empty::after { content: "\00a0"; }
+  .bun { display: inline-block; margin-right: .6em; padding: 0 .12em; border-radius: 6px; cursor: help; white-space: nowrap; outline: none; }
+  .bun:hover, .bun:focus, .bun.pinned { background: var(--hl); }
+  rt { font-size: .45em; color: var(--ruby); }
+  #reader[data-furi="hover"] rt { opacity: 0; transition: opacity .12s; }
+  #reader[data-furi="hover"] .bun:hover rt, #reader[data-furi="hover"] .bun:focus rt, #reader[data-furi="hover"] .bun.pinned rt { opacity: 1; }
+  #reader[data-color="head"] .head { color: var(--accent); }
+  #reader[data-color="pos"] .head[data-pos="noun"] { color: var(--pos-noun); }
+  #reader[data-color="pos"] .head[data-pos="pronoun"] { color: var(--pos-pronoun); }
+  #reader[data-color="pos"] .head[data-pos="verb"] { color: var(--pos-verb); }
+  #reader[data-color="pos"] .head[data-pos="adjective"] { color: var(--pos-adj); }
+  #reader[data-color="pos"] .head[data-pos="adjectival-noun"] { color: var(--pos-adjnoun); }
+  #reader[data-color="pos"] .head[data-pos="adverb"] { color: var(--pos-adverb); }
+  #reader[data-color="pos"] .head[data-pos="adnominal"] { color: var(--pos-adnominal); }
+  #reader[data-color="pos"] .head[data-pos="conjunction"] { color: var(--pos-conj); }
+  #reader[data-color="pos"] .head[data-pos="interjection"] { color: var(--pos-interj); }
+  .legend { display: none; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; margin: 6px 0 0; }
+  #reader[data-color="pos"] .legend { display: flex; }
+  .legend span::before { content: "●"; margin-right: 4px; }
+  .legend [data-pos="noun"] { color: var(--pos-noun); } .legend [data-pos="pronoun"] { color: var(--pos-pronoun); }
+  .legend [data-pos="verb"] { color: var(--pos-verb); } .legend [data-pos="adjective"] { color: var(--pos-adj); }
+  .legend [data-pos="adjectival-noun"] { color: var(--pos-adjnoun); } .legend [data-pos="adverb"] { color: var(--pos-adverb); }
+  .legend [data-pos="adnominal"] { color: var(--pos-adnominal); } .legend [data-pos="conjunction"] { color: var(--pos-conj); }
+  .legend [data-pos="interjection"] { color: var(--pos-interj); }
+
+  /* popover */
+  #pop { position: absolute; z-index: 10; width: min(360px, calc(100vw - 32px)); background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; box-shadow: 0 8px 28px rgba(0, 0, 0, .25); font-size: 14px; line-height: 1.45; }
+  #pop[hidden] { display: none; }
+  #pop .lbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; margin-top: 8px; }
+  #pop .dict { font-size: 26px; font-weight: 650; line-height: 1.2; }
+  #pop .yomi { color: var(--muted); }
+  #pop ol { margin: 4px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+  #pop li { border-top: 1px solid var(--line); padding-top: 6px; }
+  #pop li b { font-size: 17px; }
+  #pop li .arrow { color: var(--muted); margin: 0 4px; }
+  #pop li .pos { display: block; color: var(--muted); font-size: 12px; }
+  code, .chip { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .chip { display: inline-block; padding: 0 6px; border-radius: 6px; background: var(--btn); border: 1px solid var(--line); margin-left: 4px; }
+
+  /* JSON */
+  .json-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .tabs button { border: 0; border-radius: 0; background: transparent; padding: 5px 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+  .tabs button[aria-selected="true"] { background: var(--accent); color: #fff; }
+  .copy { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 5px 10px; }
+  .copy svg { width: 15px; height: 15px; }
+  .copy.done { color: var(--ok); border-color: var(--ok); }
+  #json { background: var(--code); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin: 8px 0 0; font: 12.5px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; max-height: 420px; overflow: auto; white-space: pre; tab-size: 2; }
+  .j-key { color: var(--j-key); } .j-str { color: var(--j-str); } .j-num { color: var(--j-num); } .j-p { color: var(--j-punct); }
+
+  details > summary { cursor: pointer; font-weight: 600; }
+  pre.log { background: var(--code); border-radius: 8px; padding: 8px; white-space: pre-wrap; font-size: 12px; max-height: 240px; overflow: auto; }
   .ok { color: var(--ok); } .bad { color: var(--bad); }
+  ol#results { padding-left: 22px; } ol#results pre { white-space: pre-wrap; font-size: 12px; }
 </style>
 </head>
 <body>
-<h1>wakachi test page</h1>
-<p>Status: <b id="status">…</b> <span id="size"></span></p>
-<div id="loading" hidden><progress id="progress" max="1" value="0"></progress><div><b id="stage"></b> <small id="step"></small></div></div>
-<div class="row">
-  <button id="load">Load dictionary</button>
-  <button id="unload">Unload</button>
-  <button id="clear">Delete files from device</button>
-</div>
+<header>
+  <h1>wakachi</h1>
+  <p>Japanese furigana and word analysis in the browser (Sudachi on your device). <a href="https://github.com/PikaPikaGems/wakachi">GitHub</a> · <a href="https://github.com/PikaPikaGems/wakachi/blob/main/API.md">API</a></p>
+</header>
 
-<h2>Furigana</h2>
-<textarea id="text">私は明日、日本へ行きます。お母さんと一緒に10月4日から一週間、東京で3本の映画を見ました。何か食べたい？1,000円です。</textarea>
-<div class="setting"><label><input type="checkbox" id="everyday" checked> everydayReadings</label>
-  <small class="hint">On (the default): wakachi corrects readings Sudachi gets formal or wrong for everyday text: 私 わたくし → わたし,
-    明日 あす → あした, 日本 にっぽん → にほん, お母さん, 言う いう, and numbers (10月 じゅうがつ instead of いちれいがつ, 一回 いっかい,
-    3本 さんぼん, 4日 よっか). Off: Sudachi's own readings, unchanged.</small></div>
-<div class="setting"><label>readings <input id="own" placeholder='{"私": "わたくし"}' style="width:60%"></label>
-  <small class="hint">Your own fixes, as JSON: word → reading (hiragana or katakana). Applied last, so they win. A word Sudachi splits in
-    two (お母さん) can still be fixed; it becomes one word.</small></div>
-<div class="row"><button id="go">Analyze</button> <small id="took"></small></div>
-<div id="out"></div>
-<table id="words"></table>
+<section class="card">
+  <div class="row"><span>Dictionary: <span id="status">…</span></span> <span class="badge" id="size"></span></div>
+  <div id="loading" hidden><progress id="progress" max="1" value="0"></progress><div><b id="stage"></b> <small id="step"></small></div></div>
+  <div class="row">
+    <button id="load">Load dictionary</button>
+    <button id="unload">Unload</button>
+    <button id="clear">Delete files from device</button>
+  </div>
+</section>
 
-<h2>Checks</h2>
-<p>Runs automatic checks (loads the dictionary first if needed).</p>
-<div class="row"><button id="run">Run checks</button> <b id="summary"></b></div>
-<ol id="results"></ol>
+<section class="card">
+  <h2>Text</h2>
+  <textarea id="text">私は明日、日本へ行きます。お母さんと一緒に10月4日から一週間、東京で3本の映画を見ました。
+何か食べたい？予定通り、駅前のラーメン屋に行こう。1,000円です。</textarea>
+  <div class="opts">
+    <label><input type="checkbox" id="everyday" checked> <b>everydayReadings</b>
+      <small class="hint">Corrects readings Sudachi gets formal or wrong for everyday text: 私 わたくし → わたし, 明日 あす → あした,
+        日本 にっぽん → にほん, お母さん, 言う いう, and numbers (10月 じゅうがつ, 一回 いっかい, 3本 さんぼん, 4日 よっか). Off: Sudachi's own.</small></label>
+    <label><b>readings</b> <input type="text" id="own" placeholder='{"私": "わたくし"}'>
+      <small class="hint">Your own fixes, as JSON: word → reading (hiragana or katakana). Applied last, so they win.</small></label>
+    <label><input type="checkbox" id="furi-always" checked> <b>Always show furigana</b>
+      <small class="hint">Off: furigana appears when you hover over or tap a phrase.</small></label>
+    <label><b>Colours</b> <select id="color-mode">
+        <option value="none">Plain text</option>
+        <option value="head">Main word of each phrase</option>
+        <option value="pos" selected>Main words by part of speech</option>
+      </select>
+      <small class="hint">Phrases (文節) are separated by a space; hover or tap one for its dictionary form and parts.</small></label>
+  </div>
+</section>
 
-<h2>Log</h2>
-<pre id="log"></pre>
+<section class="card" id="reader" data-color="pos" data-furi="always">
+  <div class="row"><h2 style="margin:0">Reading view</h2> <small id="took"></small></div>
+  <div id="reader-out" lang="ja"><small>Load the dictionary to see the text with furigana.</small></div>
+  <div class="legend" aria-label="Colour key">
+    <span data-pos="noun">名詞 noun</span><span data-pos="pronoun">代名詞 pronoun</span><span data-pos="verb">動詞 verb</span>
+    <span data-pos="adjective">形容詞 い-adjective</span><span data-pos="adjectival-noun">形状詞 な-adjective</span>
+    <span data-pos="adverb">副詞 adverb</span><span data-pos="adnominal">連体詞 adnominal</span>
+    <span data-pos="conjunction">接続詞 conjunction</span><span data-pos="interjection">感動詞 interjection</span>
+  </div>
+</section>
+
+<section class="card">
+  <div class="json-head">
+    <h2 style="margin:0">Raw output</h2>
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="analyze">analyze()</button>
+      <button role="tab" aria-selected="false" data-tab="furigana">furigana()</button>
+    </div>
+    <button class="copy" id="copy" title="Copy the JSON"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copy</span></button>
+  </div>
+  <small class="hint" id="json-hint"></small>
+  <pre id="json">[]</pre>
+</section>
+
+<section class="card">
+  <details>
+    <summary>Checks</summary>
+    <p>Automatic checks of the package in this browser (loads the dictionary if needed).</p>
+    <div class="row"><button id="run">Run checks</button> <b id="summary"></b></div>
+    <ol id="results"></ol>
+  </details>
+</section>
+<section class="card">
+  <details>
+    <summary>Log</summary>
+    <pre class="log" id="log"></pre>
+  </details>
+</section>
+
+<div id="pop" hidden role="dialog"></div>
 
 <script type="module">
 import { createAnalyzer, AnalyzerError, VERSION } from "./wakachi.js";
-import { groupBunsetsu, posLabel } from "./text.js";
+import { furigana, furiganaOf, groupBunsetsu, posLabel, toHiragana } from "./text.js";
 
 const $ = (id) => document.getElementById(id);
 const log = (m) => { $("log").textContent += `${new Date().toLocaleTimeString()} ${m}\n`; $("log").scrollTop = 1e9; };
@@ -66,22 +183,29 @@ window.onerror = (m) => log(`page error: ${m}`);
 window.onunhandledrejection = (e) => log(`unhandled: ${e.reason?.message ?? e.reason}`);
 const FILES = new URL("./files/", location.href).href;
 const make = (o = {}) => createAnalyzer({ filesUrl: FILES, ...o });
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+const pref = {
+  get: (k, d) => { try { return localStorage.getItem(`wakachi-demo:${k}`) ?? d; } catch { return d; } },
+  set: (k, v) => { try { localStorage.setItem(`wakachi-demo:${k}`, v); } catch {} },
+};
 
+// ------------------------------------------------------------------------------------------------ loading
 const analyzer = make();
 window.analyzer = analyzer;
 analyzer.on("status", (s) => { $("status").textContent = s; log(`status: ${s}`); });
 const MB = (n) => (n / 1e6).toFixed(1);
 analyzer.on("progress", (p) => {
-  $("loading").hidden = false;
+  $("loading").hidden = p.stage === "ready";
   $("progress").value = p.fraction;
-  $("stage").textContent = p.stage === "downloading" ? `Downloading dictionary… ${MB(p.loaded)} / ${MB(p.total)} MB`
-    : p.stage === "preparing" ? `Preparing dictionary… ${Math.round(p.fraction * 100)}%` : "Ready";
+  $("stage").textContent = p.stage === "downloading" ? `Downloading the dictionary… ${MB(p.loaded)} / ${MB(p.total)} MB`
+    : p.stage === "preparing" ? `Preparing the dictionary… ${Math.round(p.fraction * 100)}%` : "Ready";
   $("step").textContent = `${p.step}${p.file ? ` · ${p.file}` : ""}${p.parts > 1 ? ` part ${p.part}/${p.parts}` : ""} · ${(p.ms / 1000).toFixed(2)} s`;
 });
 analyzer.on("log", (m) => log(`worker: ${m}`));
 $("status").textContent = analyzer.status;
 log(`wakachi ${VERSION}; ${navigator.userAgent}`);
-analyzer.info().then(({ cached, downloadMB }) => { $("size").textContent = cached ? "(files on this device)" : `(download ${downloadMB} MB)`; });
+analyzer.info().then(({ cached, downloadMB }) => { $("size").textContent = cached ? "on this device" : `${downloadMB} MB to download`; })
+  .catch((e) => log(`info failed: ${e.message}`));
 
 async function load(a = analyzer) {
   const t0 = performance.now();
@@ -91,30 +215,196 @@ async function load(a = analyzer) {
     const rows = [...timings].sort((x, y) => y.ms - x.ms).slice(0, 8);
     log(`slowest steps:\n${rows.map((t) => `  ${String(t.ms).padStart(6)} ms  ${t.step}${t.file ? ` ${t.file}` : ""}${t.part ? ` part ${t.part}` : ""}`).join("\n")}`);
   }
-  $("size").textContent = "(files on this device)";
+  $("size").textContent = "on this device";
 }
-$("load").onclick = () => load().catch((e) => log(`load failed: ${e.code ?? e.name}: ${e.message}`));
+$("load").onclick = async () => {
+  $("load").disabled = true;
+  try { await load(); await render(); } catch (e) { log(`load failed: ${e.code ?? e.name}: ${e.message}`); $("reader-out").textContent = `Could not load: ${e.message}`; }
+  finally { $("load").disabled = false; }
+};
 $("unload").onclick = () => analyzer.unload();
-$("clear").onclick = async () => { await analyzer.clearCache(); log("files deleted from this device"); analyzer.info().then(({ downloadMB }) => { $("size").textContent = `(download ${downloadMB} MB)`; }); };
+$("clear").onclick = async () => {
+  await analyzer.clearCache();
+  log("files deleted from this device");
+  analyzer.info().then(({ downloadMB }) => { $("size").textContent = `${downloadMB} MB to download`; });
+};
 
-const esc = (s) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
-$("go").onclick = async () => {
+// ------------------------------------------------------------------------------------------------ reading view
+let ownReadings = {};
+function readOwn() {
+  const v = $("own").value.trim();
+  try { ownReadings = v ? JSON.parse(v) : {}; $("own").style.borderColor = ""; return true; }
+  catch { $("own").style.borderColor = "var(--bad)"; return false; }
+}
+
+let lastJson = { analyze: [], furigana: [] };
+let tab = "analyze";
+let seq = 0, ctrl = null;
+async function render() {
+  if (!["ready", "stopped"].includes(analyzer.status) || !readOwn()) return;
+  const mine = ++seq;
+  ctrl?.abort();
+  ctrl = new AbortController();
+  const text = $("text").value;
+  let a;
   try {
-    let own = {};
-    if ($("own").value.trim()) own = JSON.parse($("own").value);
-    const a = make({ everydayReadings: $("everyday").checked, readings: own });
-    if (analyzer.status === "not-loaded") await load();
+    a = make({ everydayReadings: $("everyday").checked, readings: ownReadings });
     await a.load();
     const t0 = performance.now();
-    const [ruby, words] = await Promise.all([a.furigana($("text").value), a.analyze($("text").value)]);
-    $("took").textContent = `${Math.round(performance.now() - t0)} ms`;
-    $("out").innerHTML = ruby.map((s) => s.reading ? `<ruby>${esc(s.text)}<rt>${esc(s.reading)}</rt></ruby>` : esc(s.text)).join("");
-    const groups = groupBunsetsu(words);
-    $("words").innerHTML = "<tr><th>word</th><th>reading</th><th>dictionary form</th><th>pos</th><th>bunsetsu</th></tr>"
-      + words.filter((w) => w.pos !== "whitespace").map((w) => `<tr><td>${esc(w.surface)}</td><td>${esc(w.reading)}</td><td>${esc(w.dictionaryForm)}</td><td>${w.pos}${w.tags.length ? ` (${w.tags})` : ""}<br><small>${esc(posLabel(w))}</small></td><td>${groups.findIndex((g) => g.morphemes.includes(w)) + 1}</td></tr>`).join("");
-    a.dispose();
-  } catch (e) { log(`analyze failed: ${e.code ?? e.name}: ${e.message}`); }
+    const [lines, words] = await Promise.all([a.analyzeMany(text.split("\n"), { signal: ctrl.signal }), a.analyze(text, { signal: ctrl.signal })]);
+    if (mine !== seq) return;
+    $("took").textContent = `${(performance.now() - t0).toFixed(0)} ms`;
+    renderReader(lines);
+    lastJson = { analyze: words, furigana: furiganaOf(words) };
+    showJson();
+  } catch (e) {
+    if (e.name !== "AbortError") log(`analyze failed: ${e.code ?? e.name}: ${e.message}`);
+  } finally { a?.dispose(); }
+}
+let timer;
+for (const id of ["text", "own"]) $(id).addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(render, 250); });
+$("everyday").onchange = render;
+
+// colour of a phrase's main word, by its part of speech (the legend uses the same keys)
+const COLOR_KEY = { "名詞": "noun", "代名詞": "pronoun", "動詞": "verb", "形容詞": "adjective", "形状詞": "adjectival-noun",
+  "副詞": "adverb", "連体詞": "adnominal", "接続詞": "conjunction", "感動詞": "interjection" };
+
+function renderReader(lines) {
+  hidePop();
+  const out = $("reader-out");
+  out.replaceChildren();
+  for (const words of lines) {
+    const line = document.createElement("div");
+    line.className = "line";
+    for (const group of groupBunsetsu(words)) {
+      const span = document.createElement("span");
+      span.className = "bun";
+      span.tabIndex = 0;
+      for (const w of group.morphemes) {
+        const part = document.createElement("span");
+        if (group.head.includes(w)) { part.className = "head"; part.dataset.pos = COLOR_KEY[group.head.at(-1).pos] ?? ""; }
+        for (const seg of furigana(w)) {
+          if (!seg.reading) { part.append(seg.text); continue; }
+          const ruby = document.createElement("ruby");
+          const rt = document.createElement("rt");
+          rt.textContent = seg.reading;
+          ruby.append(seg.text, rt);
+          part.append(ruby);
+        }
+        span.append(part);
+      }
+      span._group = group;
+      line.append(span);
+    }
+    out.append(line);
+  }
+}
+
+// display options (remembered)
+$("furi-always").checked = pref.get("furi", "1") === "1";
+$("color-mode").value = pref.get("color", "pos");
+const applyView = () => {
+  $("reader").dataset.furi = $("furi-always").checked ? "always" : "hover";
+  $("reader").dataset.color = $("color-mode").value;
+  pref.set("furi", $("furi-always").checked ? "1" : "0");
+  pref.set("color", $("color-mode").value);
 };
+$("furi-always").onchange = $("color-mode").onchange = applyView;
+applyView();
+
+// ------------------------------------------------------------------------------------------------ popover
+const pop = $("pop");
+let pinned = null, hideTimer = null;
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+function showPop(span) {
+  clearTimeout(hideTimer);
+  const g = span._group;
+  pop.replaceChildren(el("div", "lbl", "Dictionary form"), el("div", "dict", g.headDictionaryForm));
+  const norm = g.head.map((w) => w.normalizedForm || w.surface).join("");
+  if (norm !== g.headDictionaryForm) pop.append(el("div", "lbl", `Normalized: ${norm}`));
+  pop.append(el("div", "lbl", "Parts"));
+  const ol = el("ol");
+  for (const w of g.morphemes) {
+    const li = el("li");
+    li.append(el("b", null, w.surface));
+    if (w.dictionaryForm && w.dictionaryForm !== w.surface) li.append(el("span", "arrow", "→"), w.dictionaryForm);
+    if (w.reading) li.append(el("span", "yomi", `  ${toHiragana(w.reading)}`));
+    const pos = el("span", "pos", `${posLabel(w)} — ${posLabel(w, "en")}`);
+    pos.append(el("span", "chip", w.pos));
+    for (const t of w.tags) pos.append(el("span", "chip", t));
+    li.append(pos);
+    ol.append(li);
+  }
+  pop.append(ol);
+  pop.hidden = false;
+  const r = span.getBoundingClientRect();
+  const left = Math.max(8, Math.min(scrollX + r.left, scrollX + document.documentElement.clientWidth - pop.offsetWidth - 8));
+  pop.style.left = `${left}px`;
+  pop.style.top = `${scrollY + r.bottom + 6}px`;
+}
+function hidePop() { clearTimeout(hideTimer); pop.hidden = true; pinned?.classList.remove("pinned"); pinned = null; }
+const scheduleHide = () => { if (!pinned) hideTimer = setTimeout(() => { if (!pinned) pop.hidden = true; }, 250); };
+const readerOut = $("reader-out");
+readerOut.addEventListener("mouseover", (e) => { const s = e.target.closest(".bun"); if (s && !pinned) showPop(s); });
+readerOut.addEventListener("mouseout", (e) => { if (e.target.closest(".bun")) scheduleHide(); });
+readerOut.addEventListener("focusin", (e) => { const s = e.target.closest(".bun"); if (s && !pinned) showPop(s); });
+readerOut.addEventListener("click", (e) => {
+  const s = e.target.closest(".bun");
+  if (!s || pinned === s) return hidePop();
+  pinned?.classList.remove("pinned");
+  pinned = s;
+  s.classList.add("pinned");
+  showPop(s);
+  e.stopPropagation();
+});
+pop.addEventListener("mouseenter", () => clearTimeout(hideTimer));
+pop.addEventListener("mouseleave", scheduleHide);
+document.addEventListener("click", (e) => { if (pinned && !e.target.closest("#pop")) hidePop(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") hidePop(); });
+
+// ------------------------------------------------------------------------------------------------ raw JSON
+// One object per line, short arrays inline: readable, and still valid JSON when copied.
+function prettyJson(v) {
+  const flat = (x) => JSON.stringify(x);
+  if (!Array.isArray(v)) return JSON.stringify(v, null, 2);
+  const objLine = (o) => `  {\n${Object.entries(o).map(([k, x]) => `    ${flat(k)}: ${flat(x)}`).join(",\n")}\n  }`;
+  return v.length ? `[\n${v.map(objLine).join(",\n")}\n]` : "[]";
+}
+function highlight(json) {
+  return esc(json).replace(/(&#34;(?:[^&]|&(?!#34;))*?&#34;)(\s*:)?|(-?\d+(?:\.\d+)?)|([[\]{},:])/g, (m, str, colon, num, p) => {
+    if (str) return colon ? `<span class="j-key">${str}</span><span class="j-p">${colon}</span>` : `<span class="j-str">${str}</span>`;
+    if (num) return `<span class="j-num">${num}</span>`;
+    return `<span class="j-p">${p}</span>`;
+  });
+}
+const HINTS = {
+  analyze: "await analyzer.analyze(text): every word with its reading (katakana), dictionary form, part of speech and position.",
+  furigana: "await analyzer.furigana(text): the text in pieces, with a reading (hiragana) on the kanji and numbers.",
+};
+function showJson() {
+  $("json").innerHTML = highlight(prettyJson(lastJson[tab]));
+  $("json-hint").textContent = HINTS[tab];
+}
+for (const b of document.querySelectorAll(".tabs button")) {
+  b.onclick = () => {
+    tab = b.dataset.tab;
+    for (const x of document.querySelectorAll(".tabs button")) x.setAttribute("aria-selected", String(x === b));
+    showJson();
+  };
+}
+$("copy").onclick = async () => {
+  const text = prettyJson(lastJson[tab]);
+  try { await navigator.clipboard.writeText(text); }
+  catch {
+    const ta = Object.assign(document.createElement("textarea"), { value: text });
+    document.body.append(ta); ta.select(); document.execCommand("copy"); ta.remove();
+  }
+  const b = $("copy");
+  b.classList.add("done");
+  b.querySelector("span").textContent = "Copied";
+  setTimeout(() => { b.classList.remove("done"); b.querySelector("span").textContent = "Copy"; }, 1500);
+};
+showJson();
 
 // ------------------------------------------------------------------------------------------------ checks
 const results = [];
@@ -173,8 +463,8 @@ $("run").onclick = async () => {
     covers(text, w);
     const run = w.find((x) => x.surface === "走っ");
     eq(run.dictionaryForm, "走る", "dictionary form");
-    eq(run.pos, "verb", "pos");
-    assert(w.find((x) => x.surface === "東京").tags.includes("proper"), "proper tag");
+    eq(run.pos, "動詞", "pos");
+    assert(w.find((x) => x.surface === "東京").tags.includes("固有名詞"), "proper noun tag");
   });
 
   await t("everyday readings: 私 明日 日本 numbers", async () => {

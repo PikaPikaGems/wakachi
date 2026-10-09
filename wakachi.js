@@ -807,7 +807,7 @@ var SHI_BEFORE = /* @__PURE__ */ new Set(["\u751F\u6D3B", "\u7ACB", "\u6709", "\
 var NIPPON_BEFORE = /* @__PURE__ */ new Set(["\u9280\u884C", "\u751F\u547D", "\u901A\u904B", "\u96FB\u6C17", "\u5E1D\u56FD", "\u653E\u9001", "\u9244\u9053", "\u6B66\u9053\u9928", "\u6A4B"]);
 var NIPPON_AFTER = /* @__PURE__ */ new Set(["\u5927", "\u8FD1\u757F", "\u5168"]);
 var GAISHA_AFTER = /* @__PURE__ */ new Set(["\u682A\u5F0F", "\u5B50", "\u89AA", "\u5408\u540C", "\u5408\u8CC7", "\u6709\u9650", "\u95A2\u9023"]);
-var neighbour = (w) => w && w.pos !== "whitespace" ? w : null;
+var neighbour = (w) => w && w.pos !== "\u7A7A\u767D" ? w : null;
 var nextWord = (ws, i) => neighbour(ws[i + 1]);
 var prevWord = (ws, i) => neighbour(ws[i - 1]);
 function fixWord(ws, i) {
@@ -825,8 +825,8 @@ function fixWord(ws, i) {
   if (w.surface === "\u4EBA" && w.reading === "\u30CB\u30F3" && prev && (prev.posDetail[2] === "\u5730\u540D" || after(JIN_AFTER))) return "\u30B8\u30F3";
   if (w.surface === "\u6240" && w.reading === "\u30B7\u30E7" && after(JO_AFTER)) return "\u30B8\u30E7";
   if (w.surface === "\u4E2D" && w.reading === "\u30C1\u30E5\u30A6" && after(JUU_AFTER)) return "\u30B8\u30E5\u30A6";
-  if (w.surface === "\u4F1A\u793E" && prev && (GAISHA_AFTER.has(prev.surface) || prev.pos === "noun" && !prev.tags.includes("numeral") || prev.pos === "prefix")) return "\u30AC\u30A4\u30B7\u30E3";
-  if (w.surface === "\u901A\u308A" && w.reading === "\u30C8\u30AA\u30EA" && prev && (["noun", "pronoun", "adverb", "suffix"].includes(prev.pos) || prev.surface === "\u307E\u3067")) return "\u30C9\u30AA\u30EA";
+  if (w.surface === "\u4F1A\u793E" && prev && (GAISHA_AFTER.has(prev.surface) || prev.pos === "\u540D\u8A5E" && !prev.tags.includes("\u6570\u8A5E") || prev.pos === "\u63A5\u982D\u8F9E")) return "\u30AC\u30A4\u30B7\u30E3";
+  if (w.surface === "\u901A\u308A" && w.reading === "\u30C8\u30AA\u30EA" && prev && (["\u540D\u8A5E", "\u4EE3\u540D\u8A5E", "\u526F\u8A5E", "\u63A5\u5C3E\u8F9E"].includes(prev.pos) || prev.surface === "\u307E\u3067")) return "\u30C9\u30AA\u30EA";
   if (w.surface === "\u65E5" && (prev?.surface === "\u8A95\u751F" || prev?.surface.endsWith("\u66DC"))) return "\u30D3";
   if (w.dictionaryForm === "\u5165\u308B" && w.reading.startsWith("\u30CF\u30A4") && prev?.surface === "\u306B" && prevWord(ws, ws.indexOf(prev))?.surface === "\u6C17") return w.reading.slice(1);
   if (/^[1１一]日$/.test(w.surface) && w.reading === "\u30C4\u30A4\u30BF\u30C1" && prev?.surface !== "\u6708") return "\u30A4\u30C1\u30CB\u30C1";
@@ -838,7 +838,7 @@ var KANJI_DIGIT = { "\u3007": 0, "\u96F6": 0, "\u4E00": 1, "\u4E8C": 2, "\u4E09"
 var KANJI_SMALL = { "\u5341": 10, "\u767E": 100, "\u5343": 1e3 };
 var KANJI_BIG = { "\u4E07": 1e4, "\u5104": 1e8, "\u5146": 1e12 };
 var isDigitText = (s) => /^[0-9０-９]+$/.test(s);
-var isNumeralWord = (w) => w.tags.includes("numeral") && w.surface !== "\u4F55" && (/^[0-9０-９][0-9０-９,，.．]*$/.test(w.surface) || /^[〇零一二三四五六七八九十百千万億兆]+$/.test(w.surface));
+var isNumeralWord = (w) => w.tags.includes("\u6570\u8A5E") && w.surface !== "\u4F55" && (/^[0-9０-９][0-9０-９,，.．]*$/.test(w.surface) || /^[〇零一二三四五六七八九十百千万億兆]+$/.test(w.surface));
 var D = "[0-9\uFF10-\uFF19]";
 var NUMBER_TEXT = new RegExp(`^(${D}{1,3}([,\uFF0C]${D}{3})+|${D}+)([.\uFF0E]${D}+)?$`);
 var halfWidth = (s) => s.replace(/[０-９．，]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 65248));
@@ -1062,20 +1062,20 @@ function fixNumbers(ws) {
     if (frac !== void 0) pieces = [...pieces.slice(0, -1), pieces.at(-1) + "\u30C6\u30F3" + [...frac].map((d) => DIGIT_SPOKEN[d]).join("")];
     let counter = ws[j];
     if (counter?.surface === "\u5206" && ws[j + 1]?.surface === "\u306E") counter = null;
-    if (n === 0 && decimal < 0 && counter?.tags.includes("counter")) pieces = ["\u30EC\u30A4"];
-    const hasRule = counter && decimal < 0 && (counter.tags.includes("counter") || counter.pos === "suffix") && countReading(n, pieces, counter.surface);
+    if (n === 0 && decimal < 0 && counter?.tags.includes("\u52A9\u6570\u8A5E")) pieces = ["\u30EC\u30A4"];
+    const hasRule = counter && decimal < 0 && (counter.tags.includes("\u52A9\u6570\u8A5E") || counter.pos === "\u63A5\u5C3E\u8F9E") && countReading(n, pieces, counter.surface);
     if (j - i === 1 && !digits && !isNan && !hasRule) {
       out.push(w);
       continue;
     }
     const prev = out.at(-1);
-    const rule = counter && decimal < 0 && (counter.tags.includes("counter") || counter.pos === "suffix") ? countReading(isNan ? null : n, pieces, counter.surface, { afterMonth: prev?.surface.endsWith("\u6708"), afterDai: prev?.surface === "\u7B2C" }) : null;
+    const rule = counter && decimal < 0 && (counter.tags.includes("\u52A9\u6570\u8A5E") || counter.pos === "\u63A5\u5C3E\u8F9E") ? countReading(isNan ? null : n, pieces, counter.surface, { afterMonth: prev?.surface.endsWith("\u6708"), afterDai: prev?.surface === "\u7B2C" }) : null;
     if (rule?.whole) {
-      out.push({ ...merged(ws, i, j + 1, rule.whole), pos: "noun", tags: ["numeral", "counter"] });
+      out.push({ ...merged(ws, i, j + 1, rule.whole), pos: "\u540D\u8A5E", tags: ["\u6570\u8A5E", "\u52A9\u6570\u8A5E"] });
       i = j;
       continue;
     }
-    out.push(j - i > 1 || !isNan ? { ...merged(ws, i, j, rule ? rule.number : pieces.join("")), pos: "noun" } : { ...w, reading: rule ? rule.number : w.reading });
+    out.push(j - i > 1 || !isNan ? { ...merged(ws, i, j, rule ? rule.number : pieces.join("")), pos: "\u540D\u8A5E" } : { ...w, reading: rule ? rule.number : w.reading });
     if (rule) {
       out.push({ ...counter, reading: rule.counter });
       i = j;
@@ -1165,6 +1165,64 @@ function furiganaOf(words) {
   }
   return out;
 }
+var POS_ENGLISH = Object.freeze({
+  // first level: what `pos` holds
+  "\u540D\u8A5E": "noun",
+  "\u4EE3\u540D\u8A5E": "pronoun",
+  "\u52D5\u8A5E": "verb",
+  "\u5F62\u5BB9\u8A5E": "adjective (\u3044)",
+  "\u5F62\u72B6\u8A5E": "adjectival noun (\u306A)",
+  "\u526F\u8A5E": "adverb",
+  "\u9023\u4F53\u8A5E": "adnominal",
+  "\u63A5\u7D9A\u8A5E": "conjunction",
+  "\u611F\u52D5\u8A5E": "interjection",
+  "\u52A9\u8A5E": "particle",
+  "\u52A9\u52D5\u8A5E": "auxiliary verb",
+  "\u63A5\u982D\u8F9E": "prefix",
+  "\u63A5\u5C3E\u8F9E": "suffix",
+  "\u88DC\u52A9\u8A18\u53F7": "punctuation",
+  "\u8A18\u53F7": "symbol",
+  "\u7A7A\u767D": "whitespace",
+  "\u305D\u306E\u4ED6": "other",
+  // what `tags` can hold
+  "\u56FA\u6709\u540D\u8A5E": "proper noun",
+  "\u6570\u8A5E": "numeral",
+  "\u52A9\u6570\u8A5E": "counter",
+  "\u975E\u81EA\u7ACB\u53EF\u80FD": "dependent (helper use)",
+  "\u63A5\u7D9A\u52A9\u8A5E": "conjunctive particle",
+  "\u62EC\u5F27\u958B": "opening bracket",
+  "\u62EC\u5F27\u9589": "closing bracket",
+  // other levels of posDetail
+  "\u666E\u901A\u540D\u8A5E": "common noun",
+  "\u4E00\u822C": "general",
+  "\u30D5\u30A3\u30E9\u30FC": "filler",
+  "\u526F\u8A5E\u53EF\u80FD": "can act as adverb",
+  "\u52A9\u6570\u8A5E\u53EF\u80FD": "can act as counter",
+  "\u30B5\u5909\u53EF\u80FD": "suru-verb capable",
+  "\u30B5\u5909\u5F62\u72B6\u8A5E\u53EF\u80FD": "suru-verb / \u306A-adjective capable",
+  "\u5F62\u72B6\u8A5E\u53EF\u80FD": "\u306A-adjective capable",
+  "\u30BF\u30EA": "tari-type",
+  "\u52A9\u52D5\u8A5E\u8A9E\u5E79": "auxiliary stem",
+  "\u4FC2\u52A9\u8A5E": "binding particle (\u306F, \u3082)",
+  "\u683C\u52A9\u8A5E": "case particle (\u304C, \u3092, \u306B)",
+  "\u7D42\u52A9\u8A5E": "sentence-final particle (\u306D, \u3088)",
+  "\u526F\u52A9\u8A5E": "adverbial particle (\u3060\u3051, \u307E\u3067)",
+  "\u6E96\u4F53\u52A9\u8A5E": "nominalizing particle (\u306E, \u3093)",
+  "\u9593\u6295\u52A9\u8A5E": "interjectory particle",
+  "\u4E26\u7ACB\u52A9\u8A5E": "parallel particle (\u3068, \u3084)",
+  "\u53E5\u70B9": "period",
+  "\u8AAD\u70B9": "comma",
+  "\uFF21\uFF21": "ASCII art",
+  "\u9854\u6587\u5B57": "emoticon",
+  "\u5730\u540D": "place name",
+  "\u4EBA\u540D": "person name",
+  "\u56FD": "country",
+  "\u540D": "given name",
+  "\u59D3": "family name",
+  "\u7D44\u7E54\u540D": "organization",
+  "\u656C\u8A9E": "honorific",
+  "\u6587\u5B57": "character"
+});
 
 // src/index.js
 var VERSION = true ? "0.1.0" : "dev";
