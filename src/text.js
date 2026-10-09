@@ -65,7 +65,7 @@ export function furiganaOf(words) {
  * Bunsetsu (文節): one independent word (noun, verb, adjective, ...) with the particles, auxiliaries and suffixes
  * that follow it. Sudachi doesn't find these, so this is approximate (part-of-speech rules): compound nouns and some
  * verb chains occasionally split or merge oddly. Whitespace ends a group and isn't part of any.
- * @returns {{ morphemes: object[], head: object[], headDictionaryForm: string, start: number, end: number }[]}
+ * @returns {{ surface: string, morphemes: object[], head: object[], headDictionaryForm: string, start: number, end: number }[]}
  */
 export function groupBunsetsu(words) {
   const groups = [];
@@ -102,6 +102,7 @@ export function groupBunsetsu(words) {
     const i = morphemes.findIndex((w) => !NON_HEAD.has(w.pos));
     const head = i < 0 ? [morphemes[0]] : morphemes.slice(0, i + 1);
     return {
+      surface: morphemes.map((w) => w.surface).join(""),
       morphemes,
       head,
       headDictionaryForm: head.map((w) => w.dictionaryForm || w.surface).join(""),

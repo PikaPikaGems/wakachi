@@ -36,6 +36,7 @@ test("groupBunsetsu: content word plus what follows", () => {
   const g = groupBunsetsu(words);
   assert.deepEqual(g.map((x) => x.morphemes.map((m) => m.surface).join("")), ["猫が", "食べている"]);
   assert.equal(g[1].headDictionaryForm, "食べる");
+  assert.equal(g[1].surface, "食べている");
   assert.deepEqual([g[1].start, g[1].end], [2, 7]);
 });
 

@@ -335,7 +335,7 @@ import { furigana, furiganaOf, groupBunsetsu, splitSentences, toHiragana, posLab
 
 furigana(word);          // 食べ (タベ) → [{ text: "食", reading: "た" }, { text: "べ" }]
 furiganaOf(words);       // the same for a whole analysis (what analyzer.furigana() returns)
-groupBunsetsu(words);    // → [{ morphemes, head, headDictionaryForm, start, end }, ...]
+groupBunsetsu(words);    // → [{ surface, morphemes, head, headDictionaryForm, start, end }, ...]
 splitSentences(text);    // → [{ text, start, end }]; keeps 「行こう！」と彼は言った。 as one sentence
 toHiragana("ネコ");       // "ねこ"
 posLabel(word);          // "動詞・一般" (posLabel(word, "en") → "verb, general")

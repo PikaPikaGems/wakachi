@@ -4,6 +4,8 @@ import type { Morpheme, RubySegment } from "./index.js";
 export type { RubySegment };
 
 export interface Bunsetsu {
+  /** The phrase as written (its words' surfaces joined). */
+  surface: string;
   morphemes: Morpheme[];
   /** Leading prefix(es) + the first content word, e.g. [食べ] in 食べ|させ|られ|た. */
   head: Morpheme[];
