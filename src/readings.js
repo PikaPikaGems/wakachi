@@ -22,30 +22,57 @@ const WORDS = {
 
 const FAMILY = { "父": "トウ", "母": "カア", "兄": "ニイ", "姉": "ネエ" };
 const FAMILY_AFTER = new Set(["さん", "ちゃん", "様", "さま"]);
-const NANI_BEFORE = new Set(["か", "も", "が", "を", "に", "から", "まで", "より", "や", "それ", "これ", "あれ", "一つ"]);
+const NANI_BEFORE = new Set(["か", "も", "が", "を", "に", "から", "まで", "より", "それ", "これ", "あれ", "一つ"]);
+// Words before 人 / 所 / 中 that change its reading (from jp-word-ranks-data; the others keep Sudachi's にん, しょ, ちゅう:
+// 管理人, 事務所, 会議中)
+const JIN_AFTER = new Set(["社会", "宇宙", "有名", "地球", "芸能", "異邦", "一般", "現代", "異星", "知識", "民間", "英", "著名", "個々",
+  "欧米", "未来", "日系", "西洋", "野蛮", "県", "原始", "自由", "文化", "火星", "外国", "日本"]);
+const JO_AFTER = new Set(["研究", "相談", "停留", "保健", "出張", "派出", "診療", "収容", "洗面", "発行", "教習", "興信", "脱衣",
+  "避難", "取引", "造船", "検問", "印刷", "養成", "留置", "観測", "撮影"]);
+const JUU_AFTER = new Set(["世界", "一日", "日本", "一晩", "身体", "顔", "一年", "国", "村"]);
+const SHI_BEFORE = new Set(["生活", "立", "有", "鉄", "服", "物", "用", "事", "的", "情", "心", "欲", "費", "見", "設", "邸", "語", "利", "怨", "財"]);
+// 日本 stays にっぽん in these names (日本銀行, 大日本帝国, 近畿日本鉄道...)
+const NIPPON_BEFORE = new Set(["銀行", "生命", "通運", "電気", "帝国", "放送", "鉄道", "武道館", "橋"]);
+const NIPPON_AFTER = new Set(["大", "近畿", "全"]);
 const GAISHA_AFTER = new Set(["株式", "子", "親", "合同", "合資", "有限", "関連"]);
 
-/** The next / previous word that isn't whitespace. */
-const nextWord = (ws, i) => { for (let j = i + 1; j < ws.length; j++) if (ws[j].pos !== "whitespace") return ws[j]; return null; };
-const prevWord = (ws, i) => { for (let j = i - 1; j >= 0; j--) if (ws[j].pos !== "whitespace") return ws[j]; return null; };
+/** The next / previous word; null at the ends and across whitespace (a space or line break separates words). */
+const neighbour = (w) => (w && w.pos !== "whitespace" ? w : null);
+const nextWord = (ws, i) => neighbour(ws[i + 1]);
+const prevWord = (ws, i) => neighbour(ws[i - 1]);
 
 function fixWord(ws, i) {
   const w = ws[i];
   const next = nextWord(ws, i), prev = prevWord(ws, i);
-  if (w.surface === "私" && next?.surface === "ども") return null; // 私ども: humble, わたくし is right
+  // 私: only Sudachi's わたくし becomes わたし (私生活 stays し); 私ども, 私め are humble, わたくし is right
+  // 私生活, 私立, 私鉄: し in compounds
+  if (w.surface === "私" && SHI_BEFORE.has(next?.surface)) return "シ";
+  if (w.surface === "私") return w.reading === "ワタクシ" && !["ども", "め"].includes(next?.surface) ? "ワタシ" : null;
+  if (w.surface === "日本" && (NIPPON_BEFORE.has(next?.surface) || NIPPON_AFTER.has(prev?.surface))) return null;
   if (WORDS[w.surface] && w.reading) return WORDS[w.surface];
   // 言う: Sudachi says ゆう (言う, と言う); 言っ / 言わ are already いっ / いわ
   if (w.dictionaryForm === "言う" && w.reading.startsWith("ユ")) return `イ${w.reading.slice(1)}`;
   // (お)父さん, 母ちゃん, 兄さん, 姉様...
   if (FAMILY[w.surface] && next && FAMILY_AFTER.has(next.surface)) return FAMILY[w.surface];
   // 何か, 何も, 何が: なに (なん stays before counters and in 何で, 何の, 何だ)
-  if (w.surface === "何" && w.reading === "ナン" && next && NANI_BEFORE.has(next.surface)) return "ナニ";
-  // 日本人, 外国人, アメリカ人: じん after a place
-  if (w.surface === "人" && w.reading === "ニン" && prev && (prev.posDetail[2] === "地名" || prev.surface === "外国" || prev.surface === "日本")) return "ジン";
-  // 株式会社, 子会社
-  if (w.surface === "会社" && prev && GAISHA_AFTER.has(prev.surface)) return "ガイシャ";
-  // 誕生日
-  if (w.surface === "日" && prev?.surface === "誕生") return "ビ";
+  // (何にしても, 何にせよ stay なん)
+  if (w.surface === "何" && w.reading === "ナン" && next && NANI_BEFORE.has(next.surface)
+    && !(next.surface === "に" && ["し", "せよ"].includes(nextWord(ws, ws.indexOf(next))?.surface))) return "ナニ";
+  // the word before, also with the one before it (一日中: 一 + 日)
+  const before = prev ? [prev.surface, (prevWord(ws, ws.indexOf(prev))?.surface ?? "") + prev.surface] : [];
+  const after = (set) => before.some((b) => set.has(b));
+  // 日本人, 社会人, アメリカ人: じん after a place and some nouns
+  if (w.surface === "人" && w.reading === "ニン" && prev && (prev.posDetail[2] === "地名" || after(JIN_AFTER))) return "ジン";
+  // 研究所: じょ
+  if (w.surface === "所" && w.reading === "ショ" && after(JO_AFTER)) return "ジョ";
+  // 世界中, 一日中: じゅう ("throughout"; 会議中 stays ちゅう)
+  if (w.surface === "中" && w.reading === "チュウ" && after(JUU_AFTER)) return "ジュウ";
+  // 株式会社, 保険会社: がいしゃ after a noun
+  if (w.surface === "会社" && prev && (GAISHA_AFTER.has(prev.surface) || (prev.pos === "noun" && !prev.tags.includes("numeral")) || prev.pos === "prefix")) return "ガイシャ";
+  // 予定通り, いつも通り, 今まで通り: どおり (その通り, 言う通り stay とおり)
+  if (w.surface === "通り" && w.reading === "トオリ" && prev && (["noun", "pronoun", "adverb", "suffix"].includes(prev.pos) || prev.surface === "まで")) return "ドオリ";
+  // 誕生日, 金曜日
+  if (w.surface === "日" && (prev?.surface === "誕生" || prev?.surface.endsWith("曜"))) return "ビ";
   // 気に入る: いる, not はいる
   if (w.dictionaryForm === "入る" && w.reading.startsWith("ハイ") && prev?.surface === "に" && prevWord(ws, ws.indexOf(prev))?.surface === "気") return w.reading.slice(1);
   // 一日 / 1日: ついたち only after a month (4月1日), else いちにち (一日中, 1日に3回)
@@ -146,14 +173,16 @@ const CUT = { "イチ": "イッ", "ロク": "ロッ", "ハチ": "ハッ", "ジ�
  * Readings for a number (pieces from numberPieces, or ["ナン"] for 何) followed by a counter.
  * @returns {{ number: string, counter: string } | { whole: string } | null}  null: no rule for this counter
  */
-export function countReading(n, pieces, counter, { afterMonth = false } = {}) {
+export function countReading(n, pieces, counter, { afterMonth = false, afterDai = false } = {}) {
   if (counter === "日" && n != null) {
     if (n === 1 && !afterMonth) return { number: "イチ", counter: "ニチ" };
     if (DAYS[n]) return { whole: DAYS[n] };
-    return { number: pieces.join(""), counter: "ニチ" };
+    const ones = n % 10;
+    const last = ones === 7 ? "シチ" : ones === 9 ? "ク" : pieces.at(-1); // 17日 じゅうしちにち, 29日 にじゅうくにち
+    return { number: pieces.slice(0, -1).join("") + last, counter: "ニチ" };
   }
   if (counter === "つ" && TSU[n]) return { whole: TSU[n] };
-  if (counter === "人" && PEOPLE[n]) return { whole: PEOPLE[n] };
+  if (counter === "人" && PEOPLE[n] && !afterDai) return { whole: PEOPLE[n] }; // 第一人者: いちにん
   if ((counter === "歳" || counter === "才") && n === 20) return { whole: "ハタチ" };
   const rule = COUNTERS[counter];
   if (!rule) return null;
@@ -211,7 +240,8 @@ function fixNumbers(ws) {
       decimal = decimal >= j ? -1 : decimal;
     }
     const intEnd = decimal >= 0 ? decimal : j;
-    const n = isNan ? null : parseNumber(ws.slice(i, intEnd).map((x) => x.surface).join(""));
+    // 万年, 億万: a big unit with no number before it isn't いちまん
+    const n = isNan || /^[万億兆]/.test(w.surface) ? null : parseNumber(ws.slice(i, intEnd).map((x) => x.surface).join(""));
     if (!isNan && n == null) { out.push(...ws.slice(i, j)); i = j - 1; continue; }
     let pieces = isNan ? ["ナン"] : numberPieces(n);
     const intText = halfWidth(ws.slice(i, intEnd).map((x) => x.surface).join("")).replace(/,/g, "");
@@ -221,13 +251,15 @@ function fixNumbers(ws) {
       pieces = [...pieces.slice(0, -1), pieces.at(-1) + "テン" + [...frac].map((d) => DIGIT_SPOKEN[d]).join("")];
     }
 
-    const counter = ws[j];
+    let counter = ws[j];
+    if (counter?.surface === "分" && ws[j + 1]?.surface === "の") counter = null; // 三分の一: a fraction, さんぶん
+    if (n === 0 && decimal < 0 && counter?.tags.includes("counter")) pieces = ["レイ"]; // 零時, 0時: れいじ
     const hasRule = counter && decimal < 0 && (counter.tags.includes("counter") || counter.pos === "suffix") && countReading(n, pieces, counter.surface);
     // one kanji numeral on its own (零, 億, 十): Sudachi's reading fits better than a computed one
     if (j - i === 1 && !isDigitText(w.surface) && !hasRule) { out.push(w); continue; }
     const prev = out.at(-1);
     const rule = counter && decimal < 0 && (counter.tags.includes("counter") || counter.pos === "suffix")
-      ? countReading(isNan ? null : n, pieces, counter.surface, { afterMonth: prev?.surface.endsWith("月") })
+      ? countReading(isNan ? null : n, pieces, counter.surface, { afterMonth: prev?.surface.endsWith("月"), afterDai: prev?.surface === "第" })
       : null;
     if (rule?.whole) { out.push({ ...merged(ws, i, j + 1, rule.whole), pos: "noun", tags: ["numeral", "counter"] }); i = j; continue; }
     out.push(j - i > 1 || !isNan ? { ...merged(ws, i, j, rule ? rule.number : pieces.join("")), pos: "noun" } : { ...w, reading: rule ? rule.number : w.reading });

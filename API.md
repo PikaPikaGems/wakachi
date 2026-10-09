@@ -235,7 +235,10 @@ another's.
 
 Sudachi's dictionary prefers formal or rare readings for some very common words, and reads numbers digit by digit.
 With `everydayReadings` (on by default) wakachi corrects them. The word fixes come from comparing Sudachi with the
-10,000 most frequent words ([jp-word-ranks-data](https://github.com/PikaPikaGems/jp-word-ranks-data)):
+53,000 words of [jp-word-ranks-data](https://github.com/PikaPikaGems/jp-word-ranks-data): of its 37,608 words with
+kanji, Sudachi reads 2,929 differently from the list, wakachi 2,546 (top 10,000: 541 → 411). Most of the rest are
+single kanji out of context (年, 月, 方), where Sudachi's choice is fine in a sentence, and katakana words Sudachi gives
+no reading.
 
 | Text | Sudachi | wakachi |
 |---|---|---|
@@ -247,7 +250,9 @@ With `everydayReadings` (on by default) wakachi corrects them. The word fixes co
 | 何か, 何も, 何が | なんか, なんも | なにか, なにも, なにが (何で, 何の stay なん) |
 | 何人, 何分 | なにじん, なにぶん | なんにん, なんぷん |
 | 上手, 一度 | かみて, ひとたび | じょうず, いちど |
-| 株式会社, 子会社, 誕生日, 気に入る | …かいしゃ, たんじょうひ, きにはいる | …がいしゃ, たんじょうび, きにいる |
+| 株式会社, 保険会社, 誕生日, 金曜日, 気に入る | …かいしゃ, たんじょうひ, きんようひ, きにはいる | …がいしゃ, たんじょうび, きんようび, きにいる |
+| 社会人, 研究所, 世界中, 予定通り | しゃかいにん, けんきゅうしょ, せかいちゅう, よていとおり | しゃかいじん, けんきゅうじょ, せかいじゅう, よていどおり (管理人, 事務所, 会議中, その通り unchanged) |
+| 私生活, 日本銀行 | わたくしせいかつ, にっぽんぎんこう | しせいかつ, にっぽんぎんこう (names keep にっぽん) |
 | 或いは, 若しくは | あるいわ, もしくわ | あるいは, もしくは |
 
 **Numbers** become one word with the reading of the whole number, and the counter after it gets its sound change:
@@ -259,7 +264,7 @@ With `everydayReadings` (on by default) wakachi corrects them. The word fixes co
 | 一回, 100回, 3階 | いちかい, いちれいれいかい, さんかい | いっかい, ひゃっかい, さんがい |
 | 六本, 4本, 何本 | ろくぽん, よんぽん, なんぽん | ろっぽん, よんほん, なんぼん |
 | 8歳, 一週間 | はちさい, いちしゅうかん | はっさい, いっしゅうかん |
-| 4日, 20日, 4月1日 | よんか, にれいにち, しがつついたち | よっか, はつか, しがつついたち |
+| 4日, 20日, 29日, 4月1日 | よんか, にれいにち, にきゅうにち, しがつついたち | よっか, はつか, にじゅうくにち, しがつついたち |
 | 4時, 9時, 4人 | よんじ, きゅうじ, よんにん | よじ, くじ, よにん |
 | 1,000円, 3.14, ０１２ | いち きごう れいれいれい えん, さん どっと いちよん, (none) | せんえん, さんてんいちよん, ぜろいちに |
 

@@ -98,3 +98,13 @@ test("parseNumber and numberPieces", () => {
   assert.equal(numberPieces(800).join(""), "ハッピャク");
   assert.equal(numberPieces(0).join(""), "ゼロ");
 });
+
+test("compound endings: じん, じょ, じゅう, がいしゃ, どおり, び, dates", () => {
+  const cases = {
+    "社会人": "しゃかいじん", "管理人": "かんりにん", "研究所": "けんきゅうじょ", "事務所": "じむしょ",
+    "世界中": "せかいじゅう", "会議中": "かいぎちゅう", "保険会社": "ほけんがいしゃ", "予定通り": "よていどおり",
+    "その通り": "そのとおり", "金曜日": "きんようび", "29日": "にじゅうくにち", "17日": "じゅうしちにち",
+    "三分の一": "さんぶんのいち", "零時": "れいじ", "私生活": "しせいかつ", "日本銀行": "にっぽんぎんこう",
+  };
+  for (const [text, want] of Object.entries(cases)) assert.equal(whole(text), want, text);
+});
