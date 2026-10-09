@@ -7,3 +7,4 @@ test/files/
 .cache/
 files/
 demo/
+*.tgz
