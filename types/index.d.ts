@@ -158,6 +158,9 @@ export interface Analyzer {
    */
   load(): Promise<LoadResult>;
 
+  /** Phrases (文節) of a text, each with its words: groupBunsetsu() of analyze(). Approximate (part-of-speech rules). */
+  bunsetsu(text: string, options?: CallOptions): Promise<Bunsetsu[]>;
+
   /** Furigana for a whole text: joined, the `text` fields are exactly the input. */
   furigana(text: string, options?: CallOptions): Promise<RubySegment[]>;
 
@@ -215,4 +218,17 @@ export declare class AnalyzerError extends Error {
 export interface RubySegment {
   text: string;
   reading?: string;
+}
+
+/** A phrase (文節): one main word with the particles, auxiliaries and suffixes that follow it. */
+export interface Bunsetsu {
+  /** The phrase as written (its words' surfaces joined). */
+  surface: string;
+  morphemes: Morpheme[];
+  /** Leading prefix(es) + the first content word, e.g. [食べ] in 食べ|させ|られ|た. */
+  head: Morpheme[];
+  /** Dictionary form of the head, e.g. 食べる. */
+  headDictionaryForm: string;
+  start: number;
+  end: number;
 }

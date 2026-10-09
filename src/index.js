@@ -5,7 +5,7 @@
 // protections. Reading fixes (readings.js) are applied here, on the page, so each analyzer can have its own.
 import { createPool, KakeraError } from "kakera";
 import { fixReadings } from "./readings.js";
-import { furiganaOf } from "./text.js";
+import { furiganaOf, groupBunsetsu } from "./text.js";
 
 /** Set by the build (scripts/build.mjs); the worker carries the same value. */
 export const VERSION = typeof __WAKACHI_VERSION__ === "string" ? __WAKACHI_VERSION__ : "dev";
@@ -85,6 +85,11 @@ export function createAnalyzer(options = {}) {
 
     /** Many texts in one trip to the worker; result i belongs to text i. */
     analyzeMany,
+
+    /** Phrases (文節) of `text`, each with its words: groupBunsetsu() of analyze(). */
+    async bunsetsu(text, o) {
+      return groupBunsetsu(await analyze(text, o));
+    },
 
     /** Furigana for `text`: [{ text, reading? }]; joining every `text` gives back the input. */
     async furigana(text, o) {

@@ -144,6 +144,19 @@ el.innerHTML = ruby.map((s) => s.reading ? `<ruby>${s.text}<rt>${s.reading}</rt>
 // (escape s.text if the input isn't yours)
 ```
 
+### Phrases (文節)
+
+```js
+const phrases = await analyzer.bunsetsu("猫が好きです。");
+// → [{ surface: "猫が", morphemes: [猫, が], head: [猫], headDictionaryForm: "猫", start: 0, end: 2 },
+//    { surface: "好きです。", morphemes: [好き, です, 。], head: [好き], headDictionaryForm: "好き", start: 2, end: 7 }]
+```
+
+Each phrase is one main word (`head`, also in `morphemes`) with the particles, auxiliaries and suffixes that follow
+it: the units to put a space between, or to colour by their main word, as the demo page does. It's
+`groupBunsetsu(await analyzer.analyze(text))` (§9), so it's approximate: compound nouns and some verb chains
+occasionally split or merge oddly.
+
 For richer displays (word spacing, colours by part of speech, dictionary forms on tap), use `analyze()` and the
 helpers in `wakachi/text` (§9).
 

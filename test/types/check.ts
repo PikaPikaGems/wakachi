@@ -1,5 +1,5 @@
 // Compiled by `npm run test:types` (never run): the types accept real use and reject mistakes.
-import { createAnalyzer, AnalyzerError, VERSION, type Morpheme, type RubySegment, type LoadProgress } from "wakachi";
+import { createAnalyzer, AnalyzerError, VERSION, type Bunsetsu, type Morpheme, type RubySegment, type LoadProgress } from "wakachi";
 import { furigana, groupBunsetsu, splitSentences, toHiragana, posLabel, posInEnglish } from "wakachi/text";
 
 const analyzer = createAnalyzer({ filesUrl: "/wakachi/", readings: { "私": "わたくし" }, everydayReadings: true, timeouts: { analyzeStall: 10_000 } });
@@ -15,6 +15,8 @@ async function use() {
   console.log(fromCache, timings?.[0]?.step, VERSION);
   const words: Morpheme[] = await analyzer.analyze("猫が好き。", { signal: new AbortController().signal });
   const ruby: RubySegment[] = await analyzer.furigana("今日は晴れ");
+  const phrases: Bunsetsu[] = await analyzer.bunsetsu("猫が好き。");
+  phrases[0].morphemes[0].posDetail.join(phrases[0].surface);
   const many: Morpheme[][] = await analyzer.analyzeMany(["一", "二"]);
   furigana(words[0]);
   groupBunsetsu(words).map((g) => g.headDictionaryForm);

@@ -1,19 +1,8 @@
 // Types for "wakachi/text": pure helpers on the results of analyze(). See API.md §9.
-import type { Morpheme, RubySegment } from "./index.js";
+import type { Bunsetsu, Morpheme, RubySegment } from "./index.js";
 
-export type { RubySegment };
+export type { Bunsetsu, RubySegment };
 
-export interface Bunsetsu {
-  /** The phrase as written (its words' surfaces joined). */
-  surface: string;
-  morphemes: Morpheme[];
-  /** Leading prefix(es) + the first content word, e.g. [食べ] in 食べ|させ|られ|た. */
-  head: Morpheme[];
-  /** Dictionary form of the head, e.g. 食べる. */
-  headDictionaryForm: string;
-  start: number;
-  end: number;
-}
 
 /** Furigana for one word: 食べ (タベ) → [{ text: "食", reading: "た" }, { text: "べ" }]. */
 export declare function furigana(word: Pick<Morpheme, "surface" | "reading">): RubySegment[];
