@@ -1,0 +1,104 @@
+# Builds Sudachi for wakachi: hata6502/sudachi-wasm (sudachi.rs compiled to WebAssembly) with the SudachiDict "core"
+# dictionary inside, as an optimized release build, and publishes it as a pre-release of this repository.
+# `npm run files` (scripts/make-files.mjs) then turns that one big file into the dictionary parts apps use.
+#
+# Run by hand (Actions → Build Sudachi → Run workflow), once per Sudachi / dictionary version. Nothing here runs on
+# pushes, and apps never build anything.
+#
+# Why build it ourselves: the npm build (sudachi@0.1.5, 2021) rebuilds its tokenizer from the dictionary on every call
+# (~125 ms each) and is a debug build. The current source builds the dictionary once, but has no newer release.
+name: Build Sudachi
+
+on:
+  workflow_dispatch:
+    inputs:
+      sudachi_ref:
+        description: hata6502/sudachi-wasm commit
+        required: true
+        default: 60d6e1c4788b1341b325f621bf21dc5b4b397d8d
+      dict_version:
+        description: SudachiDict version (core dictionary), see github.com/WorksApplications/SudachiDict/releases
+        required: true
+        default: "20260723"
+
+permissions:
+  contents: write # to publish the pre-release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Get sudachi-wasm
+        uses: actions/checkout@v4
+        with:
+          repository: hata6502/sudachi-wasm
+          ref: ${{ inputs.sudachi_ref }}
+          path: sudachi-wasm
+
+      - name: Rust with the WebAssembly target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+
+      - name: Dictionary (embedded into the build)
+        working-directory: sudachi-wasm
+        run: |
+          sh fetch_dictionary.sh "${{ inputs.dict_version }}" core
+          ls -l resources/system.dic
+
+      - name: Build (release, optimized)
+        working-directory: sudachi-wasm/sudachi
+        run: |
+          rustc --version
+          wasm-pack --version
+          wasm-pack build --release --target web
+          ls -l pkg
+
+      - name: Package
+        env:
+          SUDACHI_REF: ${{ inputs.sudachi_ref }}
+          DICT_VERSION: ${{ inputs.dict_version }}
+        run: |
+          mkdir out
+          wasm=sudachi-wasm/sudachi/pkg/sudachi_bg.wasm
+          gzip -9 -c "$wasm" > out/sudachi.wasm.gz
+          cp sudachi-wasm/sudachi/pkg/sudachi.js out/sudachi-glue.js
+          cp sudachi-wasm/LICENSE out/LICENSE-Apache-2.0.txt
+          cat > out/build-info.json <<EOF
+          {
+            "sudachiWasm": "https://github.com/hata6502/sudachi-wasm/tree/${SUDACHI_REF}",
+            "sudachiRef": "${SUDACHI_REF}",
+            "dictionary": "SudachiDict core ${DICT_VERSION}",
+            "wasmBytes": $(stat -c %s "$wasm"),
+            "wasmSha256": "$(sha256sum "$wasm" | cut -d' ' -f1)",
+            "rustc": "$(rustc --version)",
+            "wasmPack": "$(wasm-pack --version)",
+            "builtBy": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          }
+          EOF
+          (cd out && sha256sum * > SHA256SUMS)
+          cat out/build-info.json
+          ls -l out
+
+      - name: Keep the files with this run
+        uses: actions/upload-artifact@v4
+        with:
+          name: sudachi-build
+          path: out/
+
+      - name: Publish as a pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUDACHI_REF: ${{ inputs.sudachi_ref }}
+          DICT_VERSION: ${{ inputs.dict_version }}
+        run: |
+          tag="sudachi-${SUDACHI_REF:0:7}-dict${DICT_VERSION}"
+          gh release create "$tag" out/* --repo "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" \
+            --title "Sudachi build ${SUDACHI_REF:0:7} + SudachiDict ${DICT_VERSION}" \
+            --notes "Input for \`npm run files\`, not for apps. Optimized WebAssembly build of [hata6502/sudachi-wasm@${SUDACHI_REF:0:7}](https://github.com/hata6502/sudachi-wasm/tree/${SUDACHI_REF}) with SudachiDict core ${DICT_VERSION} inside (Apache-2.0, see LICENSE-Apache-2.0.txt). Built by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}."
