@@ -56,7 +56,7 @@ src/split-input.js  cutting long text at sentence ends
 src/pos.js          Sudachi's part-of-speech tags to pos/tags
 src/sudachi-glue.js wasm-bindgen glue of the Sudachi build (scripts/sudachi-build.mjs names it)
 bin/wakachi.mjs     wakachi copy-files
-scripts/            build.mjs (dist/), make-files.mjs (files/), split-wasm.mjs
+scripts/            build.mjs (dist/), make-files.mjs (files/)
 types/              index.d.ts, text.d.ts
 test/               Node tests; analyzer.html: try it + automatic checks in the browser
 ```

@@ -5,7 +5,7 @@
 // Input:  Sudachi compiled to WebAssembly with the SudachiDict dictionary inside: the pre-release named in sudachi-build.mjs,
 //         made by .github/workflows/build-sudachi.yml (downloaded once into .cache/), or --source.
 // Output: <out> (default files/): parts of at most 20 MB + manifest.json (kakera's format) for two files:
-//           sudachi.wasm  the program with its data segments removed (see split-wasm.mjs)
+//           sudachi.wasm  the program with its data segments removed (see kakera/wasm)
 //           dict.bin      the data segments, one after the other; manifest.meta.segments says where each goes
 // src/sudachi-glue.js must be the glue of the same build (checked).
 import crypto from "node:crypto";
@@ -13,7 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
 import { splitFile, writeManifest, contentVersion } from "kakera/split";
-import { splitWasm } from "./split-wasm.mjs";
+import { splitWasm } from "kakera/wasm";
 import { SUDACHI_BUILD } from "./sudachi-build.mjs";
 
 const RELEASE = `https://github.com/PikaPikaGems/wakachi/releases/download/${SUDACHI_BUILD}/`;

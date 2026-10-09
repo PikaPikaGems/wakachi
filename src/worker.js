@@ -12,6 +12,7 @@
 import { serveEngine } from "kakera/worker";
 import { collect } from "kakera/files";
 import { codedError } from "kakera/errors";
+import { segmentWriter } from "kakera/wasm";
 import init, { tokenize } from "./sudachi-glue.js";
 import { makeAnalyzeText } from "./analyze.js";
 
@@ -20,24 +21,6 @@ const VERSION = typeof __WAKACHI_VERSION__ === "string" ? __WAKACHI_VERSION__ : 
 
 const analyzeText = makeAnalyzeText(tokenize);
 let memory = null;
-
-/** Writes a stream of bytes across the data segments, in order. */
-function segmentWriter(mem, segments) {
-  const end = Math.max(...segments.map((s) => s.offset + s.length));
-  if (mem.buffer.byteLength < end) mem.grow(Math.ceil((end - mem.buffer.byteLength) / 65536));
-  let seg = 0, pos = 0;
-  return (chunk) => {
-    let c = 0;
-    while (c < chunk.length) {
-      const s = segments[seg];
-      if (!s) throw codedError("checksum-mismatch", "the dictionary is longer than its segment table");
-      const n = Math.min(s.length - pos, chunk.length - c);
-      new Uint8Array(mem.buffer, s.offset + pos, n).set(chunk.subarray(c, c + n));
-      pos += n; c += n;
-      if (pos === s.length) { seg++; pos = 0; }
-    }
-  };
-}
 
 async function load(_msg, ctx) {
   let write = null;
@@ -54,6 +37,7 @@ async function load(_msg, ctx) {
         case "dict.bin":
           if (!write) throw codedError("engine-failed", "dict.bin came before sudachi.wasm in the manifest");
           for await (const chunk of chunks) write(chunk);
+          write.finish();
           break;
         default:
           ctx.log(`ignoring unknown file ${file.name}`);
