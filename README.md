@@ -75,6 +75,9 @@ python3 -m http.server 8095     # open http://localhost:8095/test/analyzer.html,
 
 On an iPhone on the same Wi-Fi: serve with `--bind 0.0.0.0` and open `http://<this computer's IP>:8095/test/analyzer.html`.
 
+Demo site: `npm run publish:demo` builds `demo/` (the test page with the files) and pushes it to the `gh-pages`
+branch, served at https://pikapikagems.github.io/wakachi/ (`node scripts/publish-demo.mjs --build` only builds it).
+
 A release will carry `npm pack`'s tarball (what apps install) and the contents of `files/` (what `copy-files`
 downloads, from `https://github.com/PikaPikaGems/wakachi/releases/download/v<version>/`).
 

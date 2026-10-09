@@ -6,3 +6,4 @@ test/files/
 *.log
 .cache/
 files/
+demo/

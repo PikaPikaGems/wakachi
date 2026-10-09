@@ -32,7 +32,8 @@
     "files": "node scripts/make-files.mjs",
     "test": "node --test test/*.test.mjs",
     "test:types": "tsc -p test/types",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "publish:demo": "node scripts/publish-demo.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",
