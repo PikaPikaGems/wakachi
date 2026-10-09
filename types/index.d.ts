@@ -2,29 +2,23 @@
 
 // ------------------------------------------------------------------------------------------------ results
 
-/** Part-of-speech category, simplified from Sudachi's tags (the full tags are in `posDetail`). */
+/** Part of speech: Sudachi's first-level tag (all six levels are in `posDetail`). English: posInEnglish() from "wakachi/text". */
 export type PosCategory =
-  | "noun" | "pronoun" | "verb" | "adjective"   // adjective = い-adjective
-  | "adjectival-noun"                           // な-adjective stem (Sudachi 形状詞, IPADIC 名詞,形容動詞語幹)
-  | "adverb" | "adnominal"                      // adnominal = 連体詞 (この, 大きな)
-  | "conjunction" | "interjection" | "filler"
-  | "particle" | "auxiliary"                    // auxiliary = 助動詞 (です, ます, た)
-  | "prefix" | "suffix"
-  | "punctuation"                               // 。、「」 etc.
-  | "symbol" | "whitespace" | "other";
+  | "名詞" | "代名詞" | "動詞" | "形容詞" | "形状詞"   // noun, pronoun, verb, い-adjective, な-adjective stem (好き, 静か)
+  | "副詞" | "連体詞" | "接続詞" | "感動詞"             // adverb, adnominal (この, 大きな), conjunction, interjection
+  | "助詞" | "助動詞" | "接頭辞" | "接尾辞"             // particle, auxiliary (です, た), prefix (お-), suffix (-さん)
+  | "補助記号" | "記号" | "空白"                       // punctuation (。「」), symbol, whitespace (spaces, line breaks)
+  | (string & {});                                     // anything else Sudachi reports
 
-/**
- * Extra tags, simplified from Sudachi's. The text helpers (bunsetsu grouping) rely on these.
- * A morpheme carries zero or more of them.
- */
+/** Sub-tags a word can carry (from Sudachi's lower levels); the bunsetsu grouping and readings rely on them. */
 export type PosTag =
-  | "proper"           // proper noun (東京, 田中)
-  | "numeral"          // 五, 5, 十
-  | "counter"          // can follow a number (分, 本, 人)
-  | "dependent"        // used as a helper after another word (て + いる, 食べ + 始める)
-  | "conjunctive"      // conjunctive particle (て, けど, から)
-  | "bracket-open"     // 「 ( 『
-  | "bracket-close";   // 」 ) 』
+  | "固有名詞"     // proper noun (東京, 田中)
+  | "数詞"         // numeral (五, 5, 十)
+  | "助数詞"       // can follow a number (分, 本, 人)
+  | "非自立可能"   // helper use after another word (て + いる, 食べ + 始める)
+  | "接続助詞"     // conjunctive particle (て, けど, から)
+  | "括弧開"       // 「 ( 『
+  | "括弧閉";      // 」 ) 』
 
 export interface Morpheme {
   /** The text exactly as it appears in the input (even where Sudachi rewrites characters, e.g. ":" → "："). */

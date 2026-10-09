@@ -75,29 +75,29 @@ export function groupBunsetsu(words) {
   const add = (w) => (cur ? cur.morphemes.push(w) : start(w));
 
   for (const w of words) {
-    if (w.pos === "whitespace" || !w.surface.trim()) { cur = null; attachNext = false; continue; }
+    if (w.pos === "空白" || !w.surface.trim()) { cur = null; attachNext = false; continue; }
     const prev = cur?.morphemes.at(-1);
-    if (w.tags.includes("bracket-open")) { start(w); attachNext = true; continue; }
-    if (w.pos === "punctuation" || w.pos === "symbol") { add(w); attachNext = false; continue; }
-    if (w.pos === "prefix") { start(w); attachNext = true; continue; }
+    if (w.tags.includes("括弧開")) { start(w); attachNext = true; continue; }
+    if (w.pos === "補助記号" || w.pos === "記号") { add(w); attachNext = false; continue; }
+    if (w.pos === "接頭辞") { start(w); attachNext = true; continue; }
     if (attachNext && cur) { cur.morphemes.push(w); attachNext = false; continue; }
     attachNext = false;
-    if (w.pos === "particle" || w.pos === "auxiliary" || w.pos === "suffix") { add(w); continue; }
+    if (w.pos === "助詞" || w.pos === "助動詞" || w.pos === "接尾辞") { add(w); continue; }
 
     if (cur && prev) {
       // て + いる, 食べ + 始める: a helper verb/adjective continues a predicate
-      const helper = w.tags.includes("dependent") && (w.pos === "verb" || w.pos === "adjective")
-        && (prev.pos === "verb" || prev.pos === "auxiliary" || prev.pos === "adjective" || prev.tags.includes("conjunctive"));
+      const helper = w.tags.includes("非自立可能") && (w.pos === "動詞" || w.pos === "形容詞")
+        && (prev.pos === "動詞" || prev.pos === "助動詞" || prev.pos === "形容詞" || prev.tags.includes("接続助詞"));
       // 5 + 分, 十 + 五
-      const counter = w.pos === "noun" && (w.tags.includes("numeral") || w.tags.includes("counter")) && prev.tags.includes("numeral");
+      const counter = w.pos === "名詞" && (w.tags.includes("数詞") || w.tags.includes("助数詞")) && prev.tags.includes("数詞");
       // 日本 + 語, 東京 + 都: a one-kanji noun right after a proper noun
-      const nameSuffix = w.pos === "noun" && [...w.surface].length === 1 && KANJI.test(w.surface) && prev.pos === "noun" && prev.tags.includes("proper");
+      const nameSuffix = w.pos === "名詞" && [...w.surface].length === 1 && KANJI.test(w.surface) && prev.pos === "名詞" && prev.tags.includes("固有名詞");
       if (helper || counter || nameSuffix) { cur.morphemes.push(w); continue; }
     }
     start(w);
   }
 
-  const NON_HEAD = new Set(["particle", "auxiliary", "suffix", "punctuation", "symbol", "prefix"]);
+  const NON_HEAD = new Set(["助詞", "助動詞", "接尾辞", "補助記号", "記号", "接頭辞"]);
   return groups.map(({ morphemes }) => {
     const i = morphemes.findIndex((w) => !NON_HEAD.has(w.pos));
     const head = i < 0 ? [morphemes[0]] : morphemes.slice(0, i + 1);
@@ -144,25 +144,34 @@ export function splitSentences(text) {
   return out;
 }
 
-const POS_EN = {
-  "名詞": "Noun", "代名詞": "Pronoun", "動詞": "Verb", "形容詞": "Adjective (い-adj)", "形状詞": "Adjectival noun (な-adj stem)",
-  "副詞": "Adverb", "連体詞": "Pre-noun adjectival", "接続詞": "Conjunction", "感動詞": "Interjection",
-  "助詞": "Particle", "助動詞": "Auxiliary verb", "接頭辞": "Prefix", "接尾辞": "Suffix",
-  "補助記号": "Punctuation / symbol", "記号": "Symbol", "空白": "Whitespace", "フィラー": "Filler (um, uh)", "その他": "Other",
-  "普通名詞": "common noun", "固有名詞": "proper noun", "数詞": "numeral", "一般": "general",
+/** English names for Sudachi's part-of-speech tags (all levels). */
+export const POS_ENGLISH = Object.freeze({
+  // first level: what `pos` holds
+  "名詞": "noun", "代名詞": "pronoun", "動詞": "verb", "形容詞": "adjective (い)", "形状詞": "adjectival noun (な)",
+  "副詞": "adverb", "連体詞": "adnominal", "接続詞": "conjunction", "感動詞": "interjection",
+  "助詞": "particle", "助動詞": "auxiliary verb", "接頭辞": "prefix", "接尾辞": "suffix",
+  "補助記号": "punctuation", "記号": "symbol", "空白": "whitespace", "その他": "other",
+  // what `tags` can hold
+  "固有名詞": "proper noun", "数詞": "numeral", "助数詞": "counter", "非自立可能": "dependent (helper use)",
+  "接続助詞": "conjunctive particle", "括弧開": "opening bracket", "括弧閉": "closing bracket",
+  // other levels of posDetail
+  "普通名詞": "common noun", "一般": "general", "フィラー": "filler",
   "副詞可能": "can act as adverb", "助数詞可能": "can act as counter", "サ変可能": "suru-verb capable",
-  "サ変形状詞可能": "suru-verb / na-adj capable", "形状詞可能": "na-adjective capable",
-  "非自立可能": "can be non-independent (auxiliary use)", "タリ": "tari-type", "助動詞語幹": "auxiliary stem",
-  "係助詞": "binding particle (は, も)", "格助詞": "case particle (が, を, に)", "接続助詞": "conjunctive particle (て, けど)",
+  "サ変形状詞可能": "suru-verb / な-adjective capable", "形状詞可能": "な-adjective capable",
+  "タリ": "tari-type", "助動詞語幹": "auxiliary stem",
+  "係助詞": "binding particle (は, も)", "格助詞": "case particle (が, を, に)",
   "終助詞": "sentence-final particle (ね, よ)", "副助詞": "adverbial particle (だけ, まで)", "準体助詞": "nominalizing particle (の, ん)",
   "間投助詞": "interjectory particle", "並立助詞": "parallel particle (と, や)",
-  "句点": "period", "読点": "comma", "括弧開": "opening bracket", "括弧閉": "closing bracket", "ＡＡ": "ASCII art", "顔文字": "emoticon",
+  "句点": "period", "読点": "comma", "ＡＡ": "ASCII art", "顔文字": "emoticon",
   "地名": "place name", "人名": "person name", "国": "country", "名": "given name", "姓": "family name", "組織名": "organization",
   "敬語": "honorific", "文字": "character",
-};
+});
 
-/** "Verb, general" (lang "en", the default) or "動詞・一般" ("ja"), from the word's first two Sudachi tags. */
-export function posLabel(word, lang = "en") {
+/** The English name of a part-of-speech tag: posInEnglish("名詞") → "noun", posInEnglish("固有名詞") → "proper noun". */
+export const posInEnglish = (tag) => POS_ENGLISH[tag] ?? tag;
+
+/** "動詞・一般" (lang "ja", the default) or "verb, general" ("en"), from the word's first two Sudachi tags. */
+export function posLabel(word, lang = "ja") {
   const tags = (word.posDetail ?? []).slice(0, 2).filter((t) => t && t !== "*");
-  return lang === "ja" ? tags.join("・") : tags.map((t) => POS_EN[t] ?? t).join(", ");
+  return lang === "ja" ? tags.join("・") : tags.map(posInEnglish).join(", ");
 }

@@ -156,13 +156,13 @@ const words = await analyzer.analyze("猫が好き。");
 ```js
 [
   { surface: "猫", reading: "ネコ", dictionaryForm: "猫", normalizedForm: "猫",
-    pos: "noun", tags: [], posDetail: ["名詞","普通名詞","一般","*","*","*"], start: 0, end: 1 },
+    pos: "名詞", tags: [], posDetail: ["名詞","普通名詞","一般","*","*","*"], start: 0, end: 1 },
   { surface: "が", reading: "ガ", dictionaryForm: "が", normalizedForm: "が",
-    pos: "particle", tags: [], posDetail: ["助詞","格助詞","*","*","*","*"], start: 1, end: 2 },
+    pos: "助詞", tags: [], posDetail: ["助詞","格助詞","*","*","*","*"], start: 1, end: 2 },
   { surface: "好き", reading: "スキ", dictionaryForm: "好き", normalizedForm: "好き",
-    pos: "adjectival-noun", tags: [], posDetail: ["形状詞","一般","*","*","*","*"], start: 2, end: 4 },
+    pos: "形状詞", tags: [], posDetail: ["形状詞","一般","*","*","*","*"], start: 2, end: 4 },
   { surface: "。", reading: "", dictionaryForm: "。", normalizedForm: "。",
-    pos: "punctuation", tags: [], posDetail: ["補助記号","句点","*","*","*","*"], start: 4, end: 5 },
+    pos: "補助記号", tags: [], posDetail: ["補助記号","句点","*","*","*","*"], start: 4, end: 5 },
 ]
 ```
 
@@ -186,27 +186,30 @@ Guarantees:
 - **URLs, emoji and long latin runs are fine.** (Older Sudachi builds crashed on them.) As a safety net, a piece that
   makes Sudachi fail is split and retried, so one odd stretch never loses the whole text.
 
-| `pos` | Meaning |
-|---|---|
-| `noun`, `pronoun`, `verb` | |
-| `adjective` | い-adjective |
-| `adjectival-noun` | な-adjective stem (好き, 静か) |
-| `adverb`, `conjunction`, `interjection`, `filler` | |
-| `adnominal` | 連体詞 (この, 大きな) |
-| `particle` | は, が, を, ね |
-| `auxiliary` | 助動詞 (です, ます, た) |
-| `prefix`, `suffix` | お-, -さん |
-| `punctuation` | 。、「」 |
-| `symbol`, `whitespace`, `other` | |
+`pos` is Sudachi's own first-level tag, in Japanese; `tags` adds the lower-level tags wakachi uses:
 
-| `tags` | Meaning |
+| `pos` | | `pos` | |
+|---|---|---|---|
+| `名詞` | noun | `助詞` | particle (は, が, を, ね) |
+| `代名詞` | pronoun | `助動詞` | auxiliary (です, ます, た) |
+| `動詞` | verb | `接頭辞` | prefix (お-) |
+| `形容詞` | い-adjective | `接尾辞` | suffix (-さん) |
+| `形状詞` | な-adjective stem (好き, 静か) | `補助記号` | punctuation (。、「」) |
+| `副詞` | adverb | `記号` | symbol |
+| `連体詞` | adnominal (この, 大きな) | `空白` | whitespace (spaces, line breaks) |
+| `接続詞` | conjunction | | |
+| `感動詞` | interjection (fillers too) | | |
+
+| `tags` | |
 |---|---|
-| `proper` | proper noun (東京, 田中) |
-| `numeral` | 五, 5 |
-| `counter` | can follow a number (分, 本, 人) |
-| `dependent` | helper use after another word (て**いる**, 食べ**始める**) |
-| `conjunctive` | conjunctive particle (て, けど) |
-| `bracket-open`, `bracket-close` | 「 」 ( ) |
+| `固有名詞` | proper noun (東京, 田中) |
+| `数詞` | numeral (五, 5) |
+| `助数詞` | can follow a number (分, 本, 人) |
+| `非自立可能` | helper use after another word (て**いる**, 食べ**始める**) |
+| `接続助詞` | conjunctive particle (て, けど) |
+| `括弧開`, `括弧閉` | 「 」 ( ) |
+
+English names: `posInEnglish("名詞")` → `"noun"` (from `wakachi/text`, §9; covers every level of `posDetail` too).
 
 `posDetail` is Sudachi's own UniDic-style tag list, for anyone who needs more detail than `pos` and `tags`.
 
@@ -328,14 +331,15 @@ Every failure is an `AnalyzerError` with a `code`:
 Pure functions on the results of `analyze()`:
 
 ```js
-import { furigana, furiganaOf, groupBunsetsu, splitSentences, toHiragana, posLabel } from "wakachi/text";
+import { furigana, furiganaOf, groupBunsetsu, splitSentences, toHiragana, posLabel, posInEnglish } from "wakachi/text";
 
 furigana(word);          // 食べ (タベ) → [{ text: "食", reading: "た" }, { text: "べ" }]
 furiganaOf(words);       // the same for a whole analysis (what analyzer.furigana() returns)
 groupBunsetsu(words);    // → [{ morphemes, head, headDictionaryForm, start, end }, ...]
 splitSentences(text);    // → [{ text, start, end }]; keeps 「行こう！」と彼は言った。 as one sentence
 toHiragana("ネコ");       // "ねこ"
-posLabel(word);          // "Verb, general" (posLabel(word, "ja") → "動詞・一般")
+posLabel(word);          // "動詞・一般" (posLabel(word, "en") → "verb, general")
+posInEnglish("名詞");     // "noun" (any Sudachi tag; POS_ENGLISH has them all)
 ```
 
 `groupBunsetsu` is approximate (part-of-speech rules): compound nouns and some verb chains occasionally split or

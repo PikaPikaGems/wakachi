@@ -40,21 +40,21 @@ test("analyze: fields, engine-neutral pos/tags, offsets", () => {
   const m = analyzeText(text);
   assertCovers(text, m);
   const by = Object.fromEntries(m.map((x) => [x.surface, x]));
-  assert.equal(by["東京"].pos, "noun");
-  assert.ok(by["東京"].tags.includes("proper"));
-  assert.equal(by["「"].pos, "punctuation");
-  assert.ok(by["「"].tags.includes("bracket-open"));
-  assert.equal(by["走っ"].pos, "verb");
+  assert.equal(by["東京"].pos, "名詞");
+  assert.ok(by["東京"].tags.includes("固有名詞"));
+  assert.equal(by["「"].pos, "補助記号");
+  assert.ok(by["「"].tags.includes("括弧開"));
+  assert.equal(by["走っ"].pos, "動詞");
   assert.equal(by["走っ"].dictionaryForm, "走る");
   assert.equal(by["走っ"].reading, "ハシッ");
-  assert.equal(by["た"].pos, "auxiliary");
+  assert.equal(by["た"].pos, "助動詞");
 });
 
 test("analyze: whitespace and line breaks come back as whitespace morphemes", () => {
   const text = " 猫 が\n\n好き　";
   const m = analyzeText(text);
   assertCovers(text, m);
-  assert.ok(m.filter((x) => /^\s+$/.test(x.surface) && x.surface !== "　").every((x) => x.pos === "whitespace"));
+  assert.ok(m.filter((x) => /^\s+$/.test(x.surface) && x.surface !== "　").every((x) => x.pos === "空白"));
 });
 
 test("analyze: long URLs, emoji runs and latin runs don't crash Sudachi", () => {

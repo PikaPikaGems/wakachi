@@ -23,5 +23,9 @@ export declare function groupBunsetsu(words: Morpheme[]): Bunsetsu[];
 export declare function splitSentences(text: string): { text: string; start: number; end: number }[];
 /** Katakana to hiragana. */
 export declare function toHiragana(text: string): string;
-/** "Verb, general" ("en", default) or "動詞・一般" ("ja"). */
-export declare function posLabel(word: Pick<Morpheme, "posDetail">, lang?: "en" | "ja"): string;
+/** "動詞・一般" ("ja", default) or "verb, general" ("en"), from the word's first two Sudachi tags. */
+export declare function posLabel(word: Pick<Morpheme, "posDetail">, lang?: "ja" | "en"): string;
+/** English name of a part-of-speech tag: posInEnglish("名詞") → "noun", posInEnglish("固有名詞") → "proper noun". */
+export declare function posInEnglish(tag: string): string;
+/** The English names posInEnglish() uses, for all of Sudachi's tag levels. */
+export declare const POS_ENGLISH: Readonly<Record<string, string>>;

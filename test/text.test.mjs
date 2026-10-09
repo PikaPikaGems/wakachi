@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { furigana, furiganaOf, groupBunsetsu, posLabel, splitSentences, toHiragana } from "../src/text.js";
+import { furigana, furiganaOf, groupBunsetsu, posInEnglish, posLabel, splitSentences, toHiragana } from "../src/text.js";
 
-const w = (surface, reading, pos = "noun", extra = {}) => ({ surface, reading, pos, tags: [], posDetail: ["名詞", "普通名詞", "一般", "*", "*", "*"], dictionaryForm: surface, ...extra });
+const w = (surface, reading, pos = "名詞", extra = {}) => ({ surface, reading, pos, tags: [], posDetail: ["名詞", "普通名詞", "一般", "*", "*", "*"], dictionaryForm: surface, ...extra });
 
 test("furigana: okurigana left alone, whole-word fallback, kana-only words", () => {
   assert.deepEqual(furigana(w("食べ", "タベ")), [{ text: "食", reading: "た" }, { text: "べ" }]);
@@ -28,10 +28,10 @@ test("splitSentences: quotes stay together, positions point into the text", () =
 test("groupBunsetsu: content word plus what follows", () => {
   const words = [
     { ...w("猫", "ネコ"), start: 0, end: 1 },
-    { ...w("が", "ガ", "particle"), start: 1, end: 2 },
-    { ...w("食べ", "タベ", "verb", { dictionaryForm: "食べる" }), start: 2, end: 4 },
-    { ...w("て", "テ", "particle", { tags: ["conjunctive"] }), start: 4, end: 5 },
-    { ...w("いる", "イル", "verb", { tags: ["dependent"] }), start: 5, end: 7 },
+    { ...w("が", "ガ", "助詞"), start: 1, end: 2 },
+    { ...w("食べ", "タベ", "動詞", { dictionaryForm: "食べる" }), start: 2, end: 4 },
+    { ...w("て", "テ", "助詞", { tags: ["接続助詞"] }), start: 4, end: 5 },
+    { ...w("いる", "イル", "動詞", { tags: ["非自立可能"] }), start: 5, end: 7 },
   ];
   const g = groupBunsetsu(words);
   assert.deepEqual(g.map((x) => x.morphemes.map((m) => m.surface).join("")), ["猫が", "食べている"]);
@@ -39,8 +39,11 @@ test("groupBunsetsu: content word plus what follows", () => {
   assert.deepEqual([g[1].start, g[1].end], [2, 7]);
 });
 
-test("toHiragana and posLabel", () => {
+test("toHiragana, posLabel, posInEnglish", () => {
   assert.equal(toHiragana("ネコとイヌ"), "ねこといぬ");
-  assert.equal(posLabel({ posDetail: ["動詞", "一般", "*", "*", "*", "*"] }), "Verb, general");
-  assert.equal(posLabel({ posDetail: ["動詞", "一般", "*", "*", "*", "*"] }, "ja"), "動詞・一般");
+  assert.equal(posLabel({ posDetail: ["動詞", "一般", "*", "*", "*", "*"] }), "動詞・一般");
+  assert.equal(posLabel({ posDetail: ["動詞", "一般", "*", "*", "*", "*"] }, "en"), "verb, general");
+  assert.equal(posInEnglish("名詞"), "noun");
+  assert.equal(posInEnglish("固有名詞"), "proper noun");
+  assert.equal(posInEnglish("知らない"), "知らない");
 });

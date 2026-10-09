@@ -37,7 +37,7 @@ const NIPPON_AFTER = new Set(["大", "近畿", "全"]);
 const GAISHA_AFTER = new Set(["株式", "子", "親", "合同", "合資", "有限", "関連"]);
 
 /** The next / previous word; null at the ends and across whitespace (a space or line break separates words). */
-const neighbour = (w) => (w && w.pos !== "whitespace" ? w : null);
+const neighbour = (w) => (w && w.pos !== "空白" ? w : null);
 const nextWord = (ws, i) => neighbour(ws[i + 1]);
 const prevWord = (ws, i) => neighbour(ws[i - 1]);
 
@@ -68,9 +68,9 @@ function fixWord(ws, i) {
   // 世界中, 一日中: じゅう ("throughout"; 会議中 stays ちゅう)
   if (w.surface === "中" && w.reading === "チュウ" && after(JUU_AFTER)) return "ジュウ";
   // 株式会社, 保険会社: がいしゃ after a noun
-  if (w.surface === "会社" && prev && (GAISHA_AFTER.has(prev.surface) || (prev.pos === "noun" && !prev.tags.includes("numeral")) || prev.pos === "prefix")) return "ガイシャ";
+  if (w.surface === "会社" && prev && (GAISHA_AFTER.has(prev.surface) || (prev.pos === "名詞" && !prev.tags.includes("数詞")) || prev.pos === "接頭辞")) return "ガイシャ";
   // 予定通り, いつも通り, 今まで通り: どおり (その通り, 言う通り stay とおり)
-  if (w.surface === "通り" && w.reading === "トオリ" && prev && (["noun", "pronoun", "adverb", "suffix"].includes(prev.pos) || prev.surface === "まで")) return "ドオリ";
+  if (w.surface === "通り" && w.reading === "トオリ" && prev && (["名詞", "代名詞", "副詞", "接尾辞"].includes(prev.pos) || prev.surface === "まで")) return "ドオリ";
   // 誕生日, 金曜日
   if (w.surface === "日" && (prev?.surface === "誕生" || prev?.surface.endsWith("曜"))) return "ビ";
   // 気に入る: いる, not はいる
@@ -89,7 +89,7 @@ const KANJI_SMALL = { "十": 10, "百": 100, "千": 1000 };
 const KANJI_BIG = { "万": 1e4, "億": 1e8, "兆": 1e12 };
 const isDigitText = (s) => /^[0-9０-９]+$/.test(s);
 // Sudachi gives digits as one word ("10", "1,000", "3.14") or (older builds) one word per digit
-const isNumeralWord = (w) => w.tags.includes("numeral") && w.surface !== "何"
+const isNumeralWord = (w) => w.tags.includes("数詞") && w.surface !== "何"
   && (/^[0-9０-９][0-9０-９,，.．]*$/.test(w.surface) || /^[〇零一二三四五六七八九十百千万億兆]+$/.test(w.surface));
 const D = "[0-9０-９]";
 const NUMBER_TEXT = new RegExp(`^(${D}{1,3}([,，]${D}{3})+|${D}+)([.．]${D}+)?$`); // 12, 1,000, 3.14, 1,234.5
@@ -252,16 +252,16 @@ function fixNumbers(ws) {
 
     let counter = ws[j];
     if (counter?.surface === "分" && ws[j + 1]?.surface === "の") counter = null; // 三分の一: a fraction, さんぶん
-    if (n === 0 && decimal < 0 && counter?.tags.includes("counter")) pieces = ["レイ"]; // 零時, 0時: れいじ
-    const hasRule = counter && decimal < 0 && (counter.tags.includes("counter") || counter.pos === "suffix") && countReading(n, pieces, counter.surface);
+    if (n === 0 && decimal < 0 && counter?.tags.includes("助数詞")) pieces = ["レイ"]; // 零時, 0時: れいじ
+    const hasRule = counter && decimal < 0 && (counter.tags.includes("助数詞") || counter.pos === "接尾辞") && countReading(n, pieces, counter.surface);
     // one kanji numeral on its own (零, 億, 十): Sudachi's reading fits better than a computed one
     if (j - i === 1 && !digits && !isNan && !hasRule) { out.push(w); continue; }
     const prev = out.at(-1);
-    const rule = counter && decimal < 0 && (counter.tags.includes("counter") || counter.pos === "suffix")
+    const rule = counter && decimal < 0 && (counter.tags.includes("助数詞") || counter.pos === "接尾辞")
       ? countReading(isNan ? null : n, pieces, counter.surface, { afterMonth: prev?.surface.endsWith("月"), afterDai: prev?.surface === "第" })
       : null;
-    if (rule?.whole) { out.push({ ...merged(ws, i, j + 1, rule.whole), pos: "noun", tags: ["numeral", "counter"] }); i = j; continue; }
-    out.push(j - i > 1 || !isNan ? { ...merged(ws, i, j, rule ? rule.number : pieces.join("")), pos: "noun" } : { ...w, reading: rule ? rule.number : w.reading });
+    if (rule?.whole) { out.push({ ...merged(ws, i, j + 1, rule.whole), pos: "名詞", tags: ["数詞", "助数詞"] }); i = j; continue; }
+    out.push(j - i > 1 || !isNan ? { ...merged(ws, i, j, rule ? rule.number : pieces.join("")), pos: "名詞" } : { ...w, reading: rule ? rule.number : w.reading });
     if (rule) { out.push({ ...counter, reading: rule.counter }); i = j; } else i = j - 1;
   }
   return out;

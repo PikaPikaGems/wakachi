@@ -1,6 +1,6 @@
 // Compiled by `npm run test:types` (never run): the types accept real use and reject mistakes.
 import { createAnalyzer, AnalyzerError, VERSION, type Morpheme, type RubySegment, type LoadProgress } from "wakachi";
-import { furigana, groupBunsetsu, splitSentences, toHiragana, posLabel } from "wakachi/text";
+import { furigana, groupBunsetsu, splitSentences, toHiragana, posLabel, posInEnglish } from "wakachi/text";
 
 const analyzer = createAnalyzer({ filesUrl: "/wakachi/", readings: { "私": "わたくし" }, everydayReadings: true, timeouts: { analyzeStall: 10_000 } });
 const off = analyzer.on("progress", (p: LoadProgress) => console.log(p.stage, p.fraction, p.step));
@@ -20,6 +20,7 @@ async function use() {
   groupBunsetsu(words).map((g) => g.headDictionaryForm);
   splitSentences("一。二。").map((s) => s.start);
   posLabel(words[0], "ja");
+  if (words[0].pos === "動詞" && words[0].tags.includes("非自立可能")) posInEnglish(words[0].pos).toUpperCase();
   toHiragana(ruby[0].text + many.length);
   try { await analyzer.load(); } catch (e) { if (e instanceof AnalyzerError && e.code === "unavailable") analyzer.resetCrashGuard(); }
   analyzer.unload(); analyzer.dispose(); await analyzer.clearCache();
@@ -34,3 +35,5 @@ createAnalyzer({ engine: "sudachi" });
 analyzer.analyze(42);
 // @ts-expect-error  no such error code
 new AnalyzerError("nope", "x");
+// @ts-expect-error  tags are Japanese
+const _t: import("wakachi").PosTag = "proper";
