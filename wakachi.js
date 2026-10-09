@@ -321,6 +321,29 @@ function loadTracker(profile) {
     }
   };
 }
+function startWorker(url) {
+  const u = new URL(url, location.href);
+  if (u.origin === location.origin) return new Worker(u, { type: "module" });
+  const blobUrl = URL.createObjectURL(new Blob([`import ${JSON.stringify(u.href)};`], { type: "text/javascript" }));
+  const worker = new Worker(blobUrl, { type: "module" });
+  const revoke = () => URL.revokeObjectURL(blobUrl);
+  worker.addEventListener("message", revoke, { once: true });
+  worker.addEventListener("error", revoke, { once: true });
+  return worker;
+}
+async function explainStartFailure(workerUrl, err, ErrorClass, missingHint) {
+  const url = new URL(workerUrl, location.href);
+  const otherSite = url.origin !== location.origin;
+  let res;
+  try {
+    res = await fetch(url, { method: "HEAD", cache: "no-store" });
+  } catch {
+    return new ErrorClass("download-failed", otherSite ? `could not load ${url.href}: is the site reachable, and does it send CORS headers (Access-Control-Allow-Origin)?` : `could not reach ${url.href} (is the server running, is the device online?)`, { cause: err });
+  }
+  if (res.status === 404) return new ErrorClass("engine-failed", `${url.href.replace(/\?.*/, "")} is missing${missingHint ? `: ${missingHint}` : ""}`, { cause: err });
+  if (!res.ok) return new ErrorClass("download-failed", `${url.href}: ${res.status} ${res.statusText}`, { cause: err });
+  return err;
+}
 function unsupported() {
   if (typeof WebAssembly !== "object") return "WebAssembly";
   if (typeof Worker !== "function") return "Web Workers";
@@ -542,7 +565,8 @@ function createPool({ prefix, ErrorClass = KakeraError }) {
   class Handle {
     constructor(options) {
       const o = { ...DEFAULTS, ...options };
-      if (!o.name || !o.filesUrl || typeof o.createWorker !== "function") throw new TypeError("handle(): name, filesUrl and createWorker are required");
+      if (o.workerUrl) o.createWorker = () => startWorker(o.workerUrl);
+      if (!o.name || !o.filesUrl || typeof o.createWorker !== "function") throw new TypeError("handle(): name, filesUrl and workerUrl (or createWorker) are required");
       o.crashGuard = o.crashGuard === false ? false : { ...DEFAULTS.crashGuard, ...o.crashGuard };
       this._opts = o;
       const manifestUrl = new URL("manifest.json", new URL(o.filesUrl.endsWith("/") ? o.filesUrl : `${o.filesUrl}/`, location.href)).href;
@@ -629,7 +653,8 @@ function createPool({ prefix, ErrorClass = KakeraError }) {
         this._host.users.delete(this);
         this._host.release();
         this._fail("error");
-        throw err;
+        const { workerUrl, missingHint } = this._opts;
+        throw workerUrl && err.code === "engine-failed" && /failed to start/.test(err.message) ? await explainStartFailure(workerUrl, err, ErrorClass, missingHint) : err;
       }
     }
     _fail(status) {
@@ -724,27 +749,85 @@ var WORDS = {
 };
 var FAMILY = { "\u7236": "\u30C8\u30A6", "\u6BCD": "\u30AB\u30A2", "\u5144": "\u30CB\u30A4", "\u59C9": "\u30CD\u30A8" };
 var FAMILY_AFTER = /* @__PURE__ */ new Set(["\u3055\u3093", "\u3061\u3083\u3093", "\u69D8", "\u3055\u307E"]);
-var NANI_BEFORE = /* @__PURE__ */ new Set(["\u304B", "\u3082", "\u304C", "\u3092", "\u306B", "\u304B\u3089", "\u307E\u3067", "\u3088\u308A", "\u3084", "\u305D\u308C", "\u3053\u308C", "\u3042\u308C", "\u4E00\u3064"]);
+var NANI_BEFORE = /* @__PURE__ */ new Set(["\u304B", "\u3082", "\u304C", "\u3092", "\u306B", "\u304B\u3089", "\u307E\u3067", "\u3088\u308A", "\u305D\u308C", "\u3053\u308C", "\u3042\u308C", "\u4E00\u3064"]);
+var JIN_AFTER = /* @__PURE__ */ new Set([
+  "\u793E\u4F1A",
+  "\u5B87\u5B99",
+  "\u6709\u540D",
+  "\u5730\u7403",
+  "\u82B8\u80FD",
+  "\u7570\u90A6",
+  "\u4E00\u822C",
+  "\u73FE\u4EE3",
+  "\u7570\u661F",
+  "\u77E5\u8B58",
+  "\u6C11\u9593",
+  "\u82F1",
+  "\u8457\u540D",
+  "\u500B\u3005",
+  "\u6B27\u7C73",
+  "\u672A\u6765",
+  "\u65E5\u7CFB",
+  "\u897F\u6D0B",
+  "\u91CE\u86EE",
+  "\u770C",
+  "\u539F\u59CB",
+  "\u81EA\u7531",
+  "\u6587\u5316",
+  "\u706B\u661F",
+  "\u5916\u56FD",
+  "\u65E5\u672C"
+]);
+var JO_AFTER = /* @__PURE__ */ new Set([
+  "\u7814\u7A76",
+  "\u76F8\u8AC7",
+  "\u505C\u7559",
+  "\u4FDD\u5065",
+  "\u51FA\u5F35",
+  "\u6D3E\u51FA",
+  "\u8A3A\u7642",
+  "\u53CE\u5BB9",
+  "\u6D17\u9762",
+  "\u767A\u884C",
+  "\u6559\u7FD2",
+  "\u8208\u4FE1",
+  "\u8131\u8863",
+  "\u907F\u96E3",
+  "\u53D6\u5F15",
+  "\u9020\u8239",
+  "\u691C\u554F",
+  "\u5370\u5237",
+  "\u990A\u6210",
+  "\u7559\u7F6E",
+  "\u89B3\u6E2C",
+  "\u64AE\u5F71"
+]);
+var JUU_AFTER = /* @__PURE__ */ new Set(["\u4E16\u754C", "\u4E00\u65E5", "\u65E5\u672C", "\u4E00\u6669", "\u8EAB\u4F53", "\u9854", "\u4E00\u5E74", "\u56FD", "\u6751"]);
+var SHI_BEFORE = /* @__PURE__ */ new Set(["\u751F\u6D3B", "\u7ACB", "\u6709", "\u9244", "\u670D", "\u7269", "\u7528", "\u4E8B", "\u7684", "\u60C5", "\u5FC3", "\u6B32", "\u8CBB", "\u898B", "\u8A2D", "\u90B8", "\u8A9E", "\u5229", "\u6028", "\u8CA1"]);
+var NIPPON_BEFORE = /* @__PURE__ */ new Set(["\u9280\u884C", "\u751F\u547D", "\u901A\u904B", "\u96FB\u6C17", "\u5E1D\u56FD", "\u653E\u9001", "\u9244\u9053", "\u6B66\u9053\u9928", "\u6A4B"]);
+var NIPPON_AFTER = /* @__PURE__ */ new Set(["\u5927", "\u8FD1\u757F", "\u5168"]);
 var GAISHA_AFTER = /* @__PURE__ */ new Set(["\u682A\u5F0F", "\u5B50", "\u89AA", "\u5408\u540C", "\u5408\u8CC7", "\u6709\u9650", "\u95A2\u9023"]);
-var nextWord = (ws, i) => {
-  for (let j = i + 1; j < ws.length; j++) if (ws[j].pos !== "whitespace") return ws[j];
-  return null;
-};
-var prevWord = (ws, i) => {
-  for (let j = i - 1; j >= 0; j--) if (ws[j].pos !== "whitespace") return ws[j];
-  return null;
-};
+var neighbour = (w) => w && w.pos !== "whitespace" ? w : null;
+var nextWord = (ws, i) => neighbour(ws[i + 1]);
+var prevWord = (ws, i) => neighbour(ws[i - 1]);
 function fixWord(ws, i) {
   const w = ws[i];
   const next = nextWord(ws, i), prev = prevWord(ws, i);
-  if (w.surface === "\u79C1" && next?.surface === "\u3069\u3082") return null;
+  if (w.surface === "\u79C1" && SHI_BEFORE.has(next?.surface)) return "\u30B7";
+  if (w.surface === "\u79C1") return w.reading === "\u30EF\u30BF\u30AF\u30B7" && !["\u3069\u3082", "\u3081"].includes(next?.surface) ? "\u30EF\u30BF\u30B7" : null;
+  if (w.surface === "\u65E5\u672C" && (NIPPON_BEFORE.has(next?.surface) || NIPPON_AFTER.has(prev?.surface))) return null;
   if (WORDS[w.surface] && w.reading) return WORDS[w.surface];
   if (w.dictionaryForm === "\u8A00\u3046" && w.reading.startsWith("\u30E6")) return `\u30A4${w.reading.slice(1)}`;
   if (FAMILY[w.surface] && next && FAMILY_AFTER.has(next.surface)) return FAMILY[w.surface];
-  if (w.surface === "\u4F55" && w.reading === "\u30CA\u30F3" && next && NANI_BEFORE.has(next.surface)) return "\u30CA\u30CB";
-  if (w.surface === "\u4EBA" && w.reading === "\u30CB\u30F3" && prev && (prev.posDetail[2] === "\u5730\u540D" || prev.surface === "\u5916\u56FD" || prev.surface === "\u65E5\u672C")) return "\u30B8\u30F3";
-  if (w.surface === "\u4F1A\u793E" && prev && GAISHA_AFTER.has(prev.surface)) return "\u30AC\u30A4\u30B7\u30E3";
-  if (w.surface === "\u65E5" && prev?.surface === "\u8A95\u751F") return "\u30D3";
+  if (w.surface === "\u4F55" && w.reading === "\u30CA\u30F3" && next && NANI_BEFORE.has(next.surface) && !(next.surface === "\u306B" && ["\u3057", "\u305B\u3088"].includes(nextWord(ws, ws.indexOf(next))?.surface))) return "\u30CA\u30CB";
+  const before = prev ? [prev.surface, (prevWord(ws, ws.indexOf(prev))?.surface ?? "") + prev.surface] : [];
+  const after = (set) => before.some((b) => set.has(b));
+  if (w.surface === "\u4EBA" && w.reading === "\u30CB\u30F3" && prev && (prev.posDetail[2] === "\u5730\u540D" || after(JIN_AFTER))) return "\u30B8\u30F3";
+  if (w.surface === "\u6240" && w.reading === "\u30B7\u30E7" && after(JO_AFTER)) return "\u30B8\u30E7";
+  if (w.surface === "\u4E2D" && w.reading === "\u30C1\u30E5\u30A6" && after(JUU_AFTER)) return "\u30B8\u30E5\u30A6";
+  if (w.surface === "\u4F1A\u793E" && prev && (GAISHA_AFTER.has(prev.surface) || prev.pos === "noun" && !prev.tags.includes("numeral") || prev.pos === "prefix")) return "\u30AC\u30A4\u30B7\u30E3";
+  if (w.surface === "\u901A\u308A" && w.reading === "\u30C8\u30AA\u30EA" && prev && (["noun", "pronoun", "adverb", "suffix"].includes(prev.pos) || prev.surface === "\u307E\u3067")) return "\u30C9\u30AA\u30EA";
+  if (w.surface === "\u65E5" && (prev?.surface === "\u8A95\u751F" || prev?.surface.endsWith("\u66DC"))) return "\u30D3";
   if (w.dictionaryForm === "\u5165\u308B" && w.reading.startsWith("\u30CF\u30A4") && prev?.surface === "\u306B" && prevWord(ws, ws.indexOf(prev))?.surface === "\u6C17") return w.reading.slice(1);
   if (/^[1１一]日$/.test(w.surface) && w.reading === "\u30C4\u30A4\u30BF\u30C1" && prev?.surface !== "\u6708") return "\u30A4\u30C1\u30CB\u30C1";
   return null;
@@ -890,14 +973,16 @@ var DAYS = { 1: "\u30C4\u30A4\u30BF\u30C1", 2: "\u30D5\u30C4\u30AB", 3: "\u30DF\
 var TSU = { 1: "\u30D2\u30C8\u30C4", 2: "\u30D5\u30BF\u30C4", 3: "\u30DF\u30C3\u30C4", 4: "\u30E8\u30C3\u30C4", 5: "\u30A4\u30C4\u30C4", 6: "\u30E0\u30C3\u30C4", 7: "\u30CA\u30CA\u30C4", 8: "\u30E4\u30C3\u30C4", 9: "\u30B3\u30B3\u30CE\u30C4" };
 var PEOPLE = { 1: "\u30D2\u30C8\u30EA", 2: "\u30D5\u30BF\u30EA" };
 var CUT = { "\u30A4\u30C1": "\u30A4\u30C3", "\u30ED\u30AF": "\u30ED\u30C3", "\u30CF\u30C1": "\u30CF\u30C3", "\u30B8\u30E5\u30A6": "\u30B8\u30E5\u30C3", "\u30D2\u30E3\u30AF": "\u30D2\u30E3\u30C3" };
-function countReading(n, pieces, counter, { afterMonth = false } = {}) {
+function countReading(n, pieces, counter, { afterMonth = false, afterDai = false } = {}) {
   if (counter === "\u65E5" && n != null) {
     if (n === 1 && !afterMonth) return { number: "\u30A4\u30C1", counter: "\u30CB\u30C1" };
     if (DAYS[n]) return { whole: DAYS[n] };
-    return { number: pieces.join(""), counter: "\u30CB\u30C1" };
+    const ones2 = n % 10;
+    const last2 = ones2 === 7 ? "\u30B7\u30C1" : ones2 === 9 ? "\u30AF" : pieces.at(-1);
+    return { number: pieces.slice(0, -1).join("") + last2, counter: "\u30CB\u30C1" };
   }
   if (counter === "\u3064" && TSU[n]) return { whole: TSU[n] };
-  if (counter === "\u4EBA" && PEOPLE[n]) return { whole: PEOPLE[n] };
+  if (counter === "\u4EBA" && PEOPLE[n] && !afterDai) return { whole: PEOPLE[n] };
   if ((counter === "\u6B73" || counter === "\u624D") && n === 20) return { whole: "\u30CF\u30BF\u30C1" };
   const rule = COUNTERS[counter];
   if (!rule) return null;
@@ -967,7 +1052,7 @@ function fixNumbers(ws) {
       decimal = decimal >= j ? -1 : decimal;
     }
     const intEnd = decimal >= 0 ? decimal : j;
-    const n = isNan ? null : parseNumber(ws.slice(i, intEnd).map((x) => x.surface).join(""));
+    const n = isNan || /^[万億兆]/.test(w.surface) ? null : parseNumber(ws.slice(i, intEnd).map((x) => x.surface).join(""));
     if (!isNan && n == null) {
       out.push(...ws.slice(i, j));
       i = j - 1;
@@ -980,14 +1065,16 @@ function fixNumbers(ws) {
       const frac = halfWidth(ws.slice(decimal + 1, j).map((x) => x.surface).join(""));
       pieces = [...pieces.slice(0, -1), pieces.at(-1) + "\u30C6\u30F3" + [...frac].map((d) => DIGIT_SPOKEN[d]).join("")];
     }
-    const counter = ws[j];
+    let counter = ws[j];
+    if (counter?.surface === "\u5206" && ws[j + 1]?.surface === "\u306E") counter = null;
+    if (n === 0 && decimal < 0 && counter?.tags.includes("counter")) pieces = ["\u30EC\u30A4"];
     const hasRule = counter && decimal < 0 && (counter.tags.includes("counter") || counter.pos === "suffix") && countReading(n, pieces, counter.surface);
     if (j - i === 1 && !isDigitText(w.surface) && !hasRule) {
       out.push(w);
       continue;
     }
     const prev = out.at(-1);
-    const rule = counter && decimal < 0 && (counter.tags.includes("counter") || counter.pos === "suffix") ? countReading(isNan ? null : n, pieces, counter.surface, { afterMonth: prev?.surface.endsWith("\u6708") }) : null;
+    const rule = counter && decimal < 0 && (counter.tags.includes("counter") || counter.pos === "suffix") ? countReading(isNan ? null : n, pieces, counter.surface, { afterMonth: prev?.surface.endsWith("\u6708"), afterDai: prev?.surface === "\u7B2C" }) : null;
     if (rule?.whole) {
       out.push({ ...merged(ws, i, j + 1, rule.whole), pos: "noun", tags: ["numeral", "counter"] });
       i = j;
@@ -1090,19 +1177,6 @@ var AnalyzerError = class extends KakeraError {
 };
 var pool = createPool({ prefix: "wakachi", ErrorClass: AnalyzerError });
 var versionChecked = false;
-async function explainStartFailure(workerUrl, err) {
-  let res;
-  try {
-    res = await fetch(workerUrl, { method: "HEAD", cache: "no-store" });
-  } catch {
-    return new AnalyzerError("download-failed", `could not reach ${workerUrl} (is the server running, is the device online?)`, { cause: err });
-  }
-  if (res.status === 404) {
-    return new AnalyzerError("engine-failed", `${workerUrl.replace(/\?.*/, "")} is missing: run "wakachi copy-files" into the folder served at that address`, { cause: err });
-  }
-  if (!res.ok) return new AnalyzerError("download-failed", `${workerUrl}: ${res.status} ${res.statusText}`, { cause: err });
-  return err;
-}
 function checkReadings(readings) {
   if (readings == null || typeof readings !== "object" || Array.isArray(readings)) throw new TypeError('readings must be an object like { "\u79C1": "\u308F\u305F\u304F\u3057" }');
   for (const [k, v] of Object.entries(readings)) {
@@ -1129,7 +1203,9 @@ function createAnalyzer(options = {}) {
   const handle = pool.handle(definedOnly({
     name: "sudachi",
     filesUrl: base,
-    createWorker: () => new Worker(workerUrl, { type: "module" }),
+    workerUrl,
+    // kakera starts it, also from another site (CORS), and explains why it didn't start
+    missingHint: 'run "wakachi copy-files" into the folder served at that address',
     idleTimeout,
     stopWhenHidden,
     crashGuard,
@@ -1155,12 +1231,7 @@ function createAnalyzer(options = {}) {
     info: () => handle.info(),
     /** Download (first time) and start Sudachi. Resolves { fromCache, ms, timings }. */
     async load() {
-      let res;
-      try {
-        res = await handle.load();
-      } catch (err) {
-        throw err.code === "engine-failed" && /failed to start/.test(err.message) ? await explainStartFailure(workerUrl, err) : err;
-      }
+      const res = await handle.load();
       if (!versionChecked) {
         const engine = await handle.call("version");
         if (engine !== VERSION && engine !== "dev" && VERSION !== "dev") {
