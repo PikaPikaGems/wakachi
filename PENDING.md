@@ -8,7 +8,8 @@
       sentence, 63,000 characters in 0.25 s. To update Sudachi or the dictionary: run the workflow, change
       sudachi-build.mjs, copy the new glue to src/sudachi-glue.js, `npm run files`, run the tests and the readings check.
 - [x] Demo site: https://pikapikagems.github.io/wakachi/ (`npm run publish:demo` updates it).
-- [ ] First GitHub release (v0.1.0) with `files/`: `copy-files` downloads from it by default.
+- [x] First release: v0.1.0 (pre-release, 2026-10-09) with the tarball and `files/`; the playground installs from it.
+      Next releases: bump the version, `npm pack`, `gh release create v<version> wakachi-<version>.tgz files/*`.
 - [ ] `wakachi/react`: `useAnalysis(text)`, `<Furigana text>`; React as an optional peer dependency.
 - [ ] Test on a real iPhone (load, memory, speed).
 - [ ] CI: Node tests and the browser test page.
