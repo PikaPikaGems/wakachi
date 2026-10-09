@@ -838,7 +838,9 @@ var KANJI_DIGIT = { "\u3007": 0, "\u96F6": 0, "\u4E00": 1, "\u4E8C": 2, "\u4E09"
 var KANJI_SMALL = { "\u5341": 10, "\u767E": 100, "\u5343": 1e3 };
 var KANJI_BIG = { "\u4E07": 1e4, "\u5104": 1e8, "\u5146": 1e12 };
 var isDigitText = (s) => /^[0-9０-９]+$/.test(s);
-var isNumeralWord = (w) => w.tags.includes("numeral") && w.surface !== "\u4F55" && /^[0-9０-９〇零一二三四五六七八九十百千万億兆]+$/.test(w.surface);
+var isNumeralWord = (w) => w.tags.includes("numeral") && w.surface !== "\u4F55" && (/^[0-9０-９][0-9０-９,，.．]*$/.test(w.surface) || /^[〇零一二三四五六七八九十百千万億兆]+$/.test(w.surface));
+var D = "[0-9\uFF10-\uFF19]";
+var NUMBER_TEXT = new RegExp(`^(${D}{1,3}([,\uFF0C]${D}{3})+|${D}+)([.\uFF0E]${D}+)?$`);
 var halfWidth = (s) => s.replace(/[０-９．，]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 65248));
 function parseNumber(s) {
   s = halfWidth(s).replace(/,/g, "");
@@ -1025,21 +1027,15 @@ function fixNumbers(ws) {
       out.push(w);
       continue;
     }
-    let j = i + 1, decimal = -1;
+    let j = i + 1;
     if (!isNan) {
       while (j < ws.length) {
-        const s = ws[j].surface;
         if (isNumeralWord(ws[j])) {
           j++;
           continue;
         }
         const between = isDigitText(ws[j - 1].surface) && ws[j + 1] && isDigitText(ws[j + 1].surface);
-        if (between && /^[,，]$/.test(s)) {
-          j++;
-          continue;
-        }
-        if (between && /^[.．]$/.test(s) && decimal < 0) {
-          decimal = j;
+        if (between && /^[,，.．]$/.test(ws[j].surface)) {
           j++;
           continue;
         }
@@ -1047,29 +1043,28 @@ function fixNumbers(ws) {
       }
     }
     const runText = ws.slice(i, j).map((x) => x.surface).join("");
-    if (/[,，]/.test(runText) && !/^[0-9０-９]{1,3}([,，][0-9０-９]{3})+([.．][0-9０-９]+)?$/.test(runText)) {
-      j = i + ws.slice(i, j).findIndex((x) => /^[,，]$/.test(x.surface));
-      decimal = decimal >= j ? -1 : decimal;
+    const digits = /^[0-9０-９]/.test(runText);
+    if (digits && !NUMBER_TEXT.test(runText)) {
+      out.push(...ws.slice(i, j));
+      i = j - 1;
+      continue;
     }
-    const intEnd = decimal >= 0 ? decimal : j;
-    const n = isNan || /^[万億兆]/.test(w.surface) ? null : parseNumber(ws.slice(i, intEnd).map((x) => x.surface).join(""));
+    const [intPart, frac] = digits ? halfWidth(runText).replace(/,/g, "").split(".") : [runText, void 0];
+    const decimal = frac === void 0 ? -1 : 1;
+    const n = isNan || /^[万億兆]/.test(w.surface) ? null : parseNumber(intPart);
     if (!isNan && n == null) {
       out.push(...ws.slice(i, j));
       i = j - 1;
       continue;
     }
     let pieces = isNan ? ["\u30CA\u30F3"] : numberPieces(n);
-    const intText = halfWidth(ws.slice(i, intEnd).map((x) => x.surface).join("")).replace(/,/g, "");
-    if (/^0[0-9]+$/.test(intText)) pieces = [[...intText].map((d) => DIGIT_SPOKEN[d]).join("")];
-    if (decimal >= 0) {
-      const frac = halfWidth(ws.slice(decimal + 1, j).map((x) => x.surface).join(""));
-      pieces = [...pieces.slice(0, -1), pieces.at(-1) + "\u30C6\u30F3" + [...frac].map((d) => DIGIT_SPOKEN[d]).join("")];
-    }
+    if (/^0[0-9]+$/.test(intPart)) pieces = [[...intPart].map((d) => DIGIT_SPOKEN[d]).join("")];
+    if (frac !== void 0) pieces = [...pieces.slice(0, -1), pieces.at(-1) + "\u30C6\u30F3" + [...frac].map((d) => DIGIT_SPOKEN[d]).join("")];
     let counter = ws[j];
     if (counter?.surface === "\u5206" && ws[j + 1]?.surface === "\u306E") counter = null;
     if (n === 0 && decimal < 0 && counter?.tags.includes("counter")) pieces = ["\u30EC\u30A4"];
     const hasRule = counter && decimal < 0 && (counter.tags.includes("counter") || counter.pos === "suffix") && countReading(n, pieces, counter.surface);
-    if (j - i === 1 && !isDigitText(w.surface) && !hasRule) {
+    if (j - i === 1 && !digits && !isNan && !hasRule) {
       out.push(w);
       continue;
     }

@@ -4,8 +4,9 @@ wakachi-worker.js (wakachi 0.1.0, MIT) and the dictionary files next to it conta
 
 ## Sudachi and SudachiDict
 
-[sudachi.rs](https://github.com/WorksApplications/sudachi.rs) with the SudachiDict "core" dictionary, compiled to
-WebAssembly by [hata6502/sudachi-wasm](https://github.com/hata6502/sudachi-wasm) (npm `sudachi@0.1.5`).
+[sudachi.rs](https://github.com/WorksApplications/sudachi.rs) with the SudachiDict "small" dictionary (20260723),
+compiled to WebAssembly from [hata6502/sudachi-wasm](https://github.com/hata6502/sudachi-wasm) (commit 60d6e1c) by
+wakachi's build-sudachi workflow.
 Copyright Works Applications Co., Ltd. Licensed under the Apache License, Version 2.0 (below).
 SudachiDict incorporates UniDic (BSD-3-Clause) and NEologd data: see
 https://github.com/WorksApplications/SudachiDict#license and https://github.com/hata6502/sudachi-wasm#disclaimer.
