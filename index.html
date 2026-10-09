@@ -89,6 +89,10 @@
   #json { background: var(--code); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin: 8px 0 0; font: 12.5px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; max-height: 420px; overflow: auto; white-space: pre; tab-size: 2; }
   .j-key { color: var(--j-key); } .j-str { color: var(--j-str); } .j-num { color: var(--j-num); } .j-p { color: var(--j-punct); }
 
+  .defs { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 10px 0 0; font-size: 13px; }
+  .defs dt { font-weight: 600; } .defs dt code { display: block; font-weight: 400; color: var(--muted); font-size: 11px; }
+  .defs dd { margin: 0; color: var(--muted); line-height: 1.45; }
+  @media (max-width: 640px) { .defs { grid-template-columns: 1fr; } .defs dd { margin-bottom: 6px; } }
   details > summary { cursor: pointer; font-weight: 600; }
   pre.log { background: var(--code); border-radius: 8px; padding: 8px; white-space: pre-wrap; font-size: 12px; max-height: 240px; overflow: auto; }
   .ok { color: var(--ok); } .bad { color: var(--bad); }
@@ -109,6 +113,17 @@
     <button id="unload">Unload</button>
     <button id="clear">Delete files from device</button>
   </div>
+  <dl class="defs">
+    <dt>Load dictionary <code>analyzer.load()</code></dt>
+    <dd>The first time, downloads the dictionary (45 MB) and saves it on this device; after that, reads it from the device
+      (no download). Then starts Sudachi, which uses about 135 MB of memory while loaded.</dd>
+    <dt>Unload <code>analyzer.unload()</code></dt>
+    <dd>Frees that memory now. The files stay saved, so the next analysis reloads them in under a second, without
+      downloading. wakachi also does this by itself after a minute without use, and when the page goes to the background.</dd>
+    <dt>Delete files from device <code>analyzer.clearCache()</code></dt>
+    <dd>Removes the saved files (45 MB) from this browser's storage; the next load downloads them again. A loaded
+      Sudachi keeps working until it's unloaded. Apps rarely need this (e.g. a "free up storage" button).</dd>
+  </dl>
 </section>
 
 <section class="card">
@@ -148,6 +163,7 @@
     <h2 style="margin:0">Raw output</h2>
     <div class="tabs" role="tablist">
       <button role="tab" aria-selected="true" data-tab="analyze">analyze()</button>
+      <button role="tab" aria-selected="false" data-tab="bunsetsu">groupBunsetsu()</button>
       <button role="tab" aria-selected="false" data-tab="furigana">furigana()</button>
     </div>
     <button class="copy" id="copy" title="Copy the JSON"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copy</span></button>
@@ -175,7 +191,7 @@
 
 <script type="module">
 import { createAnalyzer, AnalyzerError, VERSION } from "./wakachi.js";
-import { furigana, furiganaOf, groupBunsetsu, posLabel, toHiragana } from "./text.js";
+import { furigana, furiganaOf, groupBunsetsu, posInEnglish, posLabel, toHiragana } from "./text.js";
 
 const $ = (id) => document.getElementById(id);
 const log = (m) => { $("log").textContent += `${new Date().toLocaleTimeString()} ${m}\n`; $("log").scrollTop = 1e9; };
@@ -237,7 +253,7 @@ function readOwn() {
   catch { $("own").style.borderColor = "var(--bad)"; return false; }
 }
 
-let lastJson = { analyze: [], furigana: [] };
+let lastJson = { analyze: [], bunsetsu: [], furigana: [] };
 let tab = "analyze";
 let seq = 0, ctrl = null;
 async function render() {
@@ -255,7 +271,7 @@ async function render() {
     if (mine !== seq) return;
     $("took").textContent = `${(performance.now() - t0).toFixed(0)} ms`;
     renderReader(lines);
-    lastJson = { analyze: words, furigana: furiganaOf(words) };
+    lastJson = { analyze: words, bunsetsu: groupBunsetsu(words), furigana: furiganaOf(words) };
     showJson();
   } catch (e) {
     if (e.name !== "AbortError") log(`analyze failed: ${e.code ?? e.name}: ${e.message}`);
@@ -330,8 +346,9 @@ function showPop(span) {
     if (w.dictionaryForm && w.dictionaryForm !== w.surface) li.append(el("span", "arrow", "→"), w.dictionaryForm);
     if (w.reading) li.append(el("span", "yomi", `  ${toHiragana(w.reading)}`));
     const pos = el("span", "pos", `${posLabel(w)} — ${posLabel(w, "en")}`);
-    pos.append(el("span", "chip", w.pos));
-    for (const t of w.tags) pos.append(el("span", "chip", t));
+    // tags the label doesn't already show (it shows the first two levels of posDetail)
+    const extra = w.tags.filter((t) => !w.posDetail.slice(0, 2).includes(t));
+    if (extra.length) pos.append(el("span", "also", ` · also: ${extra.map((t) => `${t} (${posInEnglish(t)})`).join(", ")}`));
     li.append(pos);
     ol.append(li);
   }
@@ -363,12 +380,19 @@ document.addEventListener("click", (e) => { if (pinned && !e.target.closest("#po
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") hidePop(); });
 
 // ------------------------------------------------------------------------------------------------ raw JSON
-// One object per line, short arrays inline: readable, and still valid JSON when copied.
-function prettyJson(v) {
-  const flat = (x) => JSON.stringify(x);
-  if (!Array.isArray(v)) return JSON.stringify(v, null, 2);
-  const objLine = (o) => `  {\n${Object.entries(o).map(([k, x]) => `    ${flat(k)}: ${flat(x)}`).join(",\n")}\n  }`;
-  return v.length ? `[\n${v.map(objLine).join(",\n")}\n]` : "[]";
+// Objects and lists of objects one item per line, nested as deep as they go; lists of plain values (posDetail) and
+// small objects (furigana pieces) on one line. Readable, and the same JSON when copied.
+function prettyJson(v, pad = "") {
+  const inner = pad + "  ";
+  const plain = (x) => x === null || typeof x !== "object";
+  if (Array.isArray(v)) {
+    if (v.every(plain)) return JSON.stringify(v);
+    return v.length ? `[\n${v.map((x) => inner + prettyJson(x, inner)).join(",\n")}\n${pad}]` : "[]";
+  }
+  if (plain(v)) return JSON.stringify(v);
+  const entries = Object.entries(v);
+  if (entries.every(([, x]) => plain(x)) && entries.length <= 2) return JSON.stringify(v).replace(/,"/g, ', "').replace(/":/g, '": ');
+  return `{\n${entries.map(([k, x]) => `${inner}${JSON.stringify(k)}: ${prettyJson(x, inner)}`).join(",\n")}\n${pad}}`;
 }
 function highlight(json) {
   return esc(json).replace(/(&#34;(?:[^&]|&(?!#34;))*?&#34;)(\s*:)?|(-?\d+(?:\.\d+)?)|([[\]{},:])/g, (m, str, colon, num, p) => {
@@ -379,6 +403,7 @@ function highlight(json) {
 }
 const HINTS = {
   analyze: "await analyzer.analyze(text): every word with its reading (katakana), dictionary form, part of speech and position.",
+  bunsetsu: "groupBunsetsu(await analyzer.analyze(text)) from wakachi/text: the phrases (文節), each with its words (morphemes) and its main word (head, repeated from morphemes), as the reading view shows them.",
   furigana: "await analyzer.furigana(text): the text in pieces, with a reading (hiragana) on the kanji and numbers.",
 };
 function showJson() {

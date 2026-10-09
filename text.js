@@ -101,6 +101,7 @@ function groupBunsetsu(words) {
     const i = morphemes.findIndex((w) => !NON_HEAD.has(w.pos));
     const head = i < 0 ? [morphemes[0]] : morphemes.slice(0, i + 1);
     return {
+      surface: morphemes.map((w) => w.surface).join(""),
       morphemes,
       head,
       headDictionaryForm: head.map((w) => w.dictionaryForm || w.surface).join(""),
