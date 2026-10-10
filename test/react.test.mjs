@@ -135,3 +135,20 @@ test("unavailable and load errors come from the shared engine", async () => {
   assert.equal(state().status, "unavailable");
   assert.equal(typeof state().reason, "string");
 });
+
+test("deleting the files cuts the analysis off: not-loaded, no error, nothing analyzed until load()", async () => {
+  const { engine, store, reader, state } = setup();
+  reader.setText("猫");
+  await store.load();
+  engine.clearCache = async () => {
+    engine.calls[0].reject(Object.assign(new Error("files deleted"), { code: "disposed" }));
+    engine.emit("status", "not-loaded");
+  };
+  await store.clearCache();
+  await tick();
+  assert.equal(state().status, "not-loaded");
+  reader.setText("犬");
+  assert.equal(engine.calls.length, 1);
+  await store.load();
+  assert.equal(engine.calls.at(-1).text, "犬");
+});

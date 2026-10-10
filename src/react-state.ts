@@ -106,7 +106,8 @@ export function createReader(store: WakachiEngineStore, analyzer: Pick<Analyzer,
     }, (err) => {
       if (ctrl.signal.aborted) return;
       running = null;
-      error = err instanceof Error ? err : new Error(String(err));
+      // "disposed": the files were deleted (clearCache()); the status says "not-loaded" now, not an error
+      if ((err as { code?: unknown } | null)?.code !== "disposed") error = err instanceof Error ? err : new Error(String(err));
       changed();
     });
     changed();

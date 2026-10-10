@@ -175,7 +175,10 @@ export interface Analyzer {
   /** Several texts in one trip to the worker. Result i belongs to texts[i]. */
   analyzeMany(texts: string[], options?: CallOptions): Promise<Morpheme[][]>;
 
-  /** Delete the dictionary from this device. Does not stop a running Sudachi. */
+  /**
+   * Delete the dictionary from this device, free its memory and put every analyzer on the page back to "not-loaded"
+   * (pending calls reject with "disposed"). Nothing downloads again until a load().
+   */
   clearCache(): Promise<void>;
   /** Forget a recorded crash so the next load() tries again (e.g. behind a "Try again" button). */
   resetCrashGuard(): void;

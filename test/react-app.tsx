@@ -6,9 +6,9 @@ import { useWakachi, useWakachiEngine, type WakachiState, type WakachiEngine } f
 import { furiganaOf } from "../dist/text.js";
 
 const FILES = new URL("./files/", location.href).href;
-type Hooks = { history: WakachiState[]; a?: WakachiState; b?: WakachiState; engine?: WakachiEngine; setText?: (t: string) => void };
+type Hooks = { history: WakachiState[]; a?: WakachiState; b?: WakachiState; statuses: string[]; engine?: WakachiEngine; setText?: (t: string) => void };
 const w = window as unknown as { hooks: Hooks };
-w.hooks = { history: [] };
+w.hooks = { history: [], statuses: [] };
 
 function Reader({ name, text, readings }: { name: "a" | "b"; text: string; readings?: Record<string, string> }) {
   const r = useWakachi(text, { filesUrl: FILES, readings });
@@ -27,7 +27,7 @@ function Reader({ name, text, readings }: { name: "a" | "b"; text: string; readi
 
 function EngineRow() {
   const e = useWakachiEngine({ filesUrl: FILES });
-  useEffect(() => { w.hooks.engine = e; });
+  useEffect(() => { w.hooks.engine = e; if (w.hooks.statuses.at(-1) !== e.status) w.hooks.statuses.push(e.status); });
   return <div className="row">
     Dictionary: {e.cached == null ? "…" : e.cached ? "on this device" : `${e.downloadMB} MB to download`}, <b>{e.status}</b>
     {e.progress && <progress value={e.progress.fraction} />}

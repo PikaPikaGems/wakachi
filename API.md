@@ -300,8 +300,11 @@ createAnalyzer({ readings: { "私": "わたくし", "大分": "おおいた" } }
 ```js
 analyzer.unload();                // free the memory now; the next call reloads from the device
 analyzer.dispose();               // back to "not-loaded": pending calls reject, load() needed again
-await analyzer.clearCache();      // delete the dictionary from this device
+await analyzer.clearCache();      // delete the dictionary from this device (see below)
 ```
+
+`clearCache()` is the full "turn it off": it deletes the files, frees the memory and puts **every** analyzer on the
+page back to `"not-loaded"` (pending calls reject with `disposed`). Nothing is downloaded again until `load()`.
 
 Sudachi is freed only when no analyzer on the page still needs it.
 
@@ -433,7 +436,7 @@ e.progress      // { stage, fraction, ... } while loading, otherwise null
 e.error         // the last error, or null
 e.load()        // download if needed, then load into memory (never rejects: see e.status and e.error)
 e.unload()      // free the memory, keep the files
-e.clearCache()  // delete the files from this device
+e.clearCache()  // delete the files from this device and free the memory: back to "not-loaded"
 e.debugReport() // text to paste into a bug report
 ```
 

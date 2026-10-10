@@ -18,6 +18,8 @@
       One shared analyzer per filesUrl for all hooks (no provider). Node tests (test/react.test.mjs, with a fake
       engine), type tests (test/types/react.ts), and test/react.html (a small React app with automatic checks;
       `npm run build:test-react`), passing in Chromium and WebKit. Not released yet.
+- [x] `clearCache()` also frees the memory and puts every handle back to `"not-loaded"` (2026-10-10, in kakera):
+      before, the next call after deleting the files downloaded them again by itself.
 - [x] `debugReport()` (from kakera), API.md §12 (2026-10-09).
 - [x] English part-of-speech names checked (2026-10-09) against the UniDic English tagset and SudachiDict's own
       tag list: added the 4 missing suffix kinds (名詞的, 動詞的, 形容詞的, 形状詞的), removed 4 tags Sudachi never

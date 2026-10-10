@@ -35,14 +35,15 @@ async function until(what, cond, ms = 30_000) {
 }
 const assert = (ok, msg) => { if (!ok) throw new Error(msg); };
 const reading = (s, kanji) => s.furigana.find((x) => x.text === kanji)?.reading;
-const partsFetched = () => performance.getEntriesByType("resource").filter((e) => /\.part\d+/.test(e.name)).length;
+// downloads happen in the worker (the page can't see them), but they always show as status "downloading"
+const downloads = () => h().statuses.filter((s) => s === "downloading").length;
 
 const checks = [
   ["nothing loads on mount: not-loaded, size known, no parts fetched", async () => {
     await until("info()", () => h().a?.status === "not-loaded" && h().a.cached != null && h().engine?.cached != null, 5000);
     assert(typeof h().a.downloadMB === "number", "downloadMB");
     assert(h().engine.status === "not-loaded", `engine ${h().engine.status}`);
-    assert(partsFetched() === 0, "parts were fetched before load()");
+    assert(downloads() === 0 && h().engine.status === "not-loaded", "nothing before load()");
   }],
   ["load() from the engine row makes both readers done", async () => {
     const loading = h().engine.load();
@@ -70,13 +71,26 @@ const checks = [
     assert(seen.every((s) => s === "stale" || s === "猫"), `no flicker and no outdated result: ${seen}`);
   }],
   ["after unload(), the next text reloads from the device (loading, then done)", async () => {
-    const before = partsFetched();
+    const before = downloads();
     h().engine.unload();
     await until("stopped", () => h().engine.status === "stopped", 5000);
     assert(h().a.status === "done", `still showing results: ${h().a.status}`);
     h().setText("今日は晴れ。");
     await until("done again", () => h().a.status === "done" && !h().a.stale && h().a.words[0].surface === "今日");
-    assert(partsFetched() === before, "no download");
+    assert(downloads() === before, "no download");
+  }],
+  ["Delete from device: memory freed, every reader back to not-loaded; only load() downloads again", async () => {
+    const before = downloads();
+    await h().engine.clearCache();
+    await until("not-loaded", () => h().engine.status === "not-loaded" && h().a.status === "not-loaded" && h().b.status === "not-loaded", 5000);
+    assert(h().engine.cached === false, "cached");
+    h().setText("犬が好き。");
+    await sleep(500);
+    assert(h().a.status === "not-loaded", h().a.status);
+    assert(downloads() === before && h().engine.status === "not-loaded", "downloaded without load()");
+    await h().engine.load();
+    await until("done", () => h().a.status === "done" && !h().a.stale && h().a.words[0].surface === "犬");
+    assert(downloads() === before + 1 && h().engine.cached === true, "load() downloaded");
   }],
   ["debugReport() from the engine hook, without the text", async () => {
     const report = await h().engine.debugReport();
