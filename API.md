@@ -369,7 +369,7 @@ merge oddly.
 
 ## 11. TypeScript
 
-Types come with the package (`types/index.d.ts`, `types/text.d.ts`): `Morpheme`, `RubySegment`, `AnalyzerOptions`,
+Types come with the package (`dist/types/index.d.ts`, `dist/types/text.d.ts`, generated from the TypeScript source): `Morpheme`, `RubySegment`, `AnalyzerOptions`,
 `LoadProgress`, `AnalyzerError` and the rest.
 
 ## 12. React *(planned, not built yet)*

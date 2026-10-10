@@ -1,5 +1,7 @@
 # Pending
 
+- [x] Strict TypeScript source and generated public declarations (2026-10-09).
+
 - [x] Shared `debugReport()` for bug reports (2026-10-09).
 
 - [x] **Files on another host** (2026-10-09): `filesUrl` can be another site that sends CORS headers; kakera starts

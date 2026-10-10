@@ -28,6 +28,9 @@ jobs:
           path: wakachi/.cache
           key: sudachi-${{ hashFiles('wakachi/scripts/sudachi-build.mjs') }}
       - run: npm ci
+        working-directory: kakera
+      - run: npm ci
+      - run: npm run check
       - run: npm run build
       - run: npm run files
       - run: npm test

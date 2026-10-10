@@ -5,8 +5,15 @@
     "target": "es2022",
     "module": "nodenext",
     "moduleResolution": "nodenext",
-    "lib": ["es2022", "dom"],
+    "lib": [
+      "es2022",
+      "dom"
+    ],
     "skipLibCheck": false
   },
-  "files": ["check.ts"]
+  "files": [
+    "check.ts",
+    "compatibility-index.ts",
+    "compatibility-text.ts"
+  ]
 }

@@ -6,17 +6,21 @@
 import { splitInput, MAX_PIECE } from "./split-input.js";
 import { sudachiPos } from "./pos.js";
 
+import type { Morpheme } from "./types.js";
+interface RawMorpheme { surface: string; poses: string[]; reading_form: string; dictionary_form: string; normalized_form: string }
+type Piece = [index: number, offset: number, text: string];
+
 const MODE_C = 2; // the longest units (選挙管理委員会 as one word), as wakachi has always used
 
 /**
- * @param {(text: string, mode: number) => string} tokenize  the wasm-bindgen export
+ * @param {(text: string, mode: 0 | 1 | 2) => string} tokenize  the wasm-bindgen export
  * @returns {(text: string, alive?: () => void) => object[]}  analyzeText
  */
-export function makeAnalyzeText(tokenize) {
+export function makeAnalyzeText(tokenize: (text: string, mode: 0 | 1 | 2) => string) {
   let traps = 0;
 
   /** Raw Sudachi morphemes for `text`, never throwing on a Sudachi trap. */
-  function raw(text) {
+  function raw(text: string): RawMorpheme[] {
     try {
       return JSON.parse(tokenize(text, MODE_C));
     } catch (err) {
@@ -36,7 +40,7 @@ export function makeAnalyzeText(tokenize) {
    * back as "："). Usually one character becomes one character, so surfaces are mapped back by position. When the
    * counts differ (a character expanded or merged), the text is halved until they match.
    */
-  function aligned(text) {
+  function aligned(text: string): RawMorpheme[] {
     const ms = raw(text);
     const src = Array.from(text);
     const lens = ms.map((m) => Array.from(m.surface).length);
@@ -58,16 +62,16 @@ export function makeAnalyzeText(tokenize) {
    * round trips. Every character of a call is mapped back to its text and position; the joining line breaks are
    * dropped.
    */
-  function analyzeTexts(texts, alive = () => {}) {
-    const results = texts.map(() => []);
+  function analyzeTexts(texts: string[], alive = () => {}): Morpheme[][] {
+    const results: Morpheme[][] = texts.map(() => []);
     // pieces: [text index, offset in that text, string]
-    const pieces = [];
+    const pieces: Piece[] = [];
     texts.forEach((text, k) => {
       for (const piece of splitInput(text)) {
         pieces.push([k, piece.offset, piece.text]);
       }
     });
-    let batch = [], size = 0;
+    let batch: Piece[] = [], size = 0;
     const flush = () => {
       if (batch.length) { runBatch(batch, results); alive(); }
       batch = []; size = 0;
@@ -82,9 +86,9 @@ export function makeAnalyzeText(tokenize) {
   }
 
   /** One Sudachi call for `batch`, its words appended to `results`. */
-  function runBatch(batch, results) {
+  function runBatch(batch: Piece[], results: Morpheme[][]) {
     // owner[i] / pos[i]: text and position of character i of the call; -1 for a joining line break
-    const owner = [], pos = [];
+    const owner: number[] = [], pos: number[] = [];
     let joined = "";
     batch.forEach(([k, offset, part], n) => {
       if (n) { joined += "\n"; owner.push(-1); pos.push(-1); }
@@ -119,7 +123,7 @@ export function makeAnalyzeText(tokenize) {
   }
 
   /** Words of one text. */
-  const analyzeText = (text, alive) => analyzeTexts([text], alive)[0];
+  const analyzeText = (text: string, alive?: () => void) => analyzeTexts([text], alive)[0];
   analyzeText.many = analyzeTexts;
   analyzeText.traps = () => traps;
   return analyzeText;

@@ -1,11 +1,14 @@
 // wakachi/text: pure functions on the results of analyze(). No worker, no dictionary. See API.md §9.
 
+import type { Morpheme, RubySegment, Bunsetsu } from "./types.js";
+export type { RubySegment, Bunsetsu } from "./types.js";
+
 const KANJI = /[㐀-鿿豈-﫿々〆ヵヶ]/;
 const DIGIT = /[0-9０-９]/;
-const isRubyChar = (c) => KANJI.test(c) || DIGIT.test(c);
+const isRubyChar = (c: string) => KANJI.test(c) || DIGIT.test(c);
 
 /** Katakana to hiragana ("ネコ" → "ねこ"); everything else is left as is. */
-export const toHiragana = (s) => s.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+export const toHiragana = (s: string): string => s.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
 
 /**
  * Furigana for one word: the reading (hiragana) sits on its kanji and numbers; kana next to them (okurigana) is
@@ -14,13 +17,13 @@ export const toHiragana = (s) => s.replace(/[ァ-ヶ]/g, (c) => String.fromCharC
  * @param {{ surface: string, reading: string }} word
  * @returns {{ text: string, reading?: string }[]}
  */
-export function furigana({ surface, reading }) {
+export function furigana({ surface, reading }: Pick<Morpheme, "surface" | "reading">): RubySegment[] {
   if (!reading || ![...surface].some(isRubyChar)) return [{ text: surface }];
   const hira = toHiragana(reading);
   const whole = [{ text: surface, reading: hira }];
 
   // alternating runs of kanji/digits (k) and everything else
-  const runs = [];
+  const runs: { k: boolean; text: string }[] = [];
   for (const ch of surface) {
     const k = isRubyChar(ch);
     const last = runs.at(-1);
@@ -28,7 +31,7 @@ export function furigana({ surface, reading }) {
     else runs.push({ k, text: ch });
   }
 
-  const out = [];
+  const out: RubySegment[] = [];
   let pos = 0;
   for (let i = 0; i < runs.length; i++) {
     const run = runs[i];
@@ -49,8 +52,8 @@ export function furigana({ surface, reading }) {
 }
 
 /** Furigana for a whole analysis: the words' furigana joined, plain pieces next to each other merged. */
-export function furiganaOf(words) {
-  const out = [];
+export function furiganaOf(words: Pick<Morpheme, "surface" | "reading">[]): RubySegment[] {
+  const out: RubySegment[] = [];
   for (const w of words) {
     for (const seg of furigana(w)) {
       const last = out.at(-1);
@@ -67,12 +70,12 @@ export function furiganaOf(words) {
  * verb chains occasionally split or merge oddly. Whitespace ends a group and isn't part of any.
  * @returns {{ surface: string, morphemes: object[], head: object[], headDictionaryForm: string, start: number, end: number }[]}
  */
-export function groupBunsetsu(words) {
-  const groups = [];
-  let cur = null;
+export function groupBunsetsu(words: Morpheme[]): Bunsetsu[] {
+  const groups: { morphemes: Morpheme[] }[] = [];
+  let cur = null as { morphemes: Morpheme[] } | null;
   let attachNext = false;
-  const start = (w) => { cur = { morphemes: [w] }; groups.push(cur); };
-  const add = (w) => (cur ? cur.morphemes.push(w) : start(w));
+  const start = (w: Morpheme) => { cur = { morphemes: [w] }; groups.push(cur); };
+  const add = (w: Morpheme) => (cur ? cur.morphemes.push(w) : start(w));
 
   for (const w of words) {
     if (w.pos === "空白" || !w.surface.trim()) { cur = null; attachNext = false; continue; }
@@ -107,7 +110,7 @@ export function groupBunsetsu(words) {
       head,
       headDictionaryForm: head.map((w) => w.dictionaryForm || w.surface).join(""),
       start: morphemes[0].start,
-      end: morphemes.at(-1).end,
+      end: morphemes.at(-1)!.end,
     };
   });
 }
@@ -118,11 +121,11 @@ export function groupBunsetsu(words) {
  * so 「行こう！」と彼は言った。 is one sentence. Surrounding spaces are left out; empty lines give nothing.
  * @returns {{ text: string, start: number, end: number }[]}
  */
-export function splitSentences(text) {
+export function splitSentences(text: string): { text: string; start: number; end: number }[] {
   const ENDERS = "。！？!?…", OPEN = "「『（(［[【", CLOSE = "」』）)］]】", QUOTES = "\"”’'";
-  const out = [];
+  const out: { text: string; start: number; end: number }[] = [];
   let from = 0, depth = 0;
-  const flush = (to) => {
+  const flush = (to: number) => {
     const piece = text.slice(from, to);
     const lead = piece.length - piece.trimStart().length;
     const t = piece.trim();
@@ -150,7 +153,7 @@ export function splitSentences(text) {
  * Checked against the English tagset for UniDic, whose tags Sudachi uses (Srdanovic, checked by Ogiso, Den and
  * Maekawa: gist.github.com/masayu-a/e3eee0637c07d4019ec9). Levels 5 and 6 (conjugation type and form) aren't here.
  */
-export const POS_ENGLISH = Object.freeze({
+export const POS_ENGLISH: Readonly<Record<string, string>> = Object.freeze({
   // first level: what `pos` holds
   "名詞": "noun", "代名詞": "pronoun", "動詞": "verb", "形容詞": "adjective (い)", "形状詞": "adjectival noun (な)",
   "副詞": "adverb", "連体詞": "adnominal", "接続詞": "conjunction", "感動詞": "interjection",
@@ -172,10 +175,10 @@ export const POS_ENGLISH = Object.freeze({
 });
 
 /** The English name of a part-of-speech tag: posInEnglish("名詞") → "noun", posInEnglish("固有名詞") → "proper noun". */
-export const posInEnglish = (tag) => POS_ENGLISH[tag] ?? tag;
+export const posInEnglish = (tag: string): string => POS_ENGLISH[tag] ?? tag;
 
 /** "動詞・一般" (lang "ja", the default) or "verb, general" ("en"), from the word's first two Sudachi tags. */
-export function posLabel(word, lang = "ja") {
+export function posLabel(word: Pick<Morpheme, "posDetail">, lang: "ja" | "en" = "ja"): string {
   const tags = (word.posDetail ?? []).slice(0, 2).filter((t) => t && t !== "*");
   return lang === "ja" ? tags.join("・") : tags.map(posInEnglish).join(", ");
 }

@@ -1,8 +1,8 @@
 // Everyday readings and the app's own readings, on real Sudachi output. Needs .cache/sudachi-0.1.5.wasm (npm run files).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { makeAnalyzeText } from "../src/analyze.js";
-import { fixReadings, numberPieces, parseNumber } from "../src/readings.js";
+import { makeAnalyzeText } from "../.cache/compiled/analyze.js";
+import { fixReadings, numberPieces, parseNumber } from "../.cache/compiled/readings.js";
 import { sudachi } from "./sudachi.js";
 
 const { glue } = await sudachi("readings");
