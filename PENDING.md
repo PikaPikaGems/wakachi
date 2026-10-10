@@ -16,7 +16,7 @@
       Next releases: bump the version, `npm pack`, `gh release create v<version> wakachi-<version>.tgz files/*`.
 - [ ] `wakachi/react`: `useWakachi(text)` and `useWakachiEngine()`, designed in API.md §12; React as an optional peer
       dependency. No `<Furigana>` component: API.md shows the few lines with `furiganaOf`.
-- [ ] `debugReport()` (from kakera), API.md §12.
+- [x] `debugReport()` (from kakera), API.md §12 (2026-10-09).
 - [x] English part-of-speech names checked (2026-10-09) against the UniDic English tagset and SudachiDict's own
       tag list: added the 4 missing suffix kinds (名詞的, 動詞的, 形容詞的, 形状詞的), removed 4 tags Sudachi never
       uses, clearer wording for 非自立可能 and the 可能 tags. A test checks the list stays complete.
