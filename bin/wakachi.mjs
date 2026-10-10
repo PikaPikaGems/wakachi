@@ -54,16 +54,18 @@ async function main() {
   const parts = manifest.files.flatMap((f) => f.parts);
   const worker = fs.readFileSync(new URL(`dist/${WORKER}`, pkgDir));
 
-  // Already up to date? (same manifest, parts of the right size, same worker)
+  // Already up to date? (same files, parts of the right size, same manifest, same worker)
   const oldManifestPath = path.join(dest, "manifest.json");
   const old = fs.existsSync(oldManifestPath) ? JSON.parse(fs.readFileSync(oldManifestPath, "utf8")) : null;
   const sameFiles = old?.version === manifest.version
     && parts.every((p) => fs.statSync(path.join(dest, p.file), { throwIfNoEntry: false })?.size === p.size);
+  // the same files can come with a newer package's manifest (only its meta differs): keep that manifest current
+  const sameManifest = old != null && JSON.stringify(old) === JSON.stringify(manifest);
   const workerPath = path.join(dest, WORKER);
   const licenses = fs.readFileSync(new URL(`dist/${LICENSES}`, pkgDir));
   const sameFile = (p, bytes) => fs.existsSync(p) && fs.readFileSync(p).equals(bytes);
   const sameWorker = sameFile(workerPath, worker) && sameFile(path.join(dest, LICENSES), licenses);
-  if (sameFiles && sameWorker) { console.log(`wakachi: ${path.relative(process.cwd(), dest) || "."} is up to date`); return; }
+  if (sameFiles && sameManifest && sameWorker) { console.log(`wakachi: ${path.relative(process.cwd(), dest) || "."} is up to date`); return; }
 
   fs.mkdirSync(dest, { recursive: true });
   if (!sameFiles) {
@@ -87,10 +89,11 @@ async function main() {
     for (const p of parts) fs.copyFileSync(path.join(cache, p.file), path.join(dest, p.file));
     fs.writeFileSync(oldManifestPath, JSON.stringify(manifest, null, 2)); // last: marks the folder complete
   }
+  if (sameFiles && !sameManifest) fs.writeFileSync(oldManifestPath, JSON.stringify(manifest, null, 2));
   if (!sameWorker) fs.writeFileSync(workerPath, worker);
   fs.writeFileSync(path.join(dest, LICENSES), licenses);
   const where = path.relative(process.cwd(), dest) || ".";
-  console.log(sameFiles ? `wakachi: updated ${WORKER} in ${where}` : `wakachi: copied the dictionary files (${mb(manifest.downloadSize)} MB) to ${where}`);
+  console.log(sameFiles ? `wakachi: updated ${[!sameManifest && "manifest.json", !sameWorker && WORKER].filter(Boolean).join(" and ") || LICENSES} in ${where}` : `wakachi: copied the dictionary files (${mb(manifest.downloadSize)} MB) to ${where}`);
 }
 
 main().catch((e) => die(e.message));
