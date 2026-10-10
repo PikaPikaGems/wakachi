@@ -1,6 +1,6 @@
 {
   "name": "wakachi",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Japanese furigana and word analysis in the browser (Sudachi), with everyday readings. Works on iPhone Safari.",
   "license": "MIT",
   "type": "module",
