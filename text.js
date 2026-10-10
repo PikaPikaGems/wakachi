@@ -1,4 +1,4 @@
-// src/text.js
+// src/text.ts
 var KANJI = /[㐀-鿿豈-﫿々〆ヵヶ]/;
 var DIGIT = /[0-9０-９]/;
 var isRubyChar = (c) => KANJI.test(c) || DIGIT.test(c);
