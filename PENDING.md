@@ -17,7 +17,7 @@
 - [x] `wakachi/react` (2026-10-10): `useWakachi(text)` and `useWakachiEngine()`, API.md §12; React ≥ 18 as an optional peer dependency.
       One shared analyzer per filesUrl for all hooks (no provider). Node tests (test/react.test.mjs, with a fake
       engine), type tests (test/types/react.ts), and test/react.html (a small React app with automatic checks;
-      `npm run build:test-react`), passing in Chromium and WebKit. Not released yet.
+      `npm run build:test-react`), passing in Chromium and WebKit. Released in v0.2.0 (2026-10-10).
 - [x] `clearCache()` also frees the memory and puts every handle back to `"not-loaded"` (2026-10-10, in kakera):
       before, the next call after deleting the files downloaded them again by itself.
 - [x] `debugReport()` (from kakera), API.md §12 (2026-10-09).
