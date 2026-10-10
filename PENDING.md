@@ -25,7 +25,7 @@
       tag list: added the 4 missing suffix kinds (名詞的, 動詞的, 形容詞的, 形状詞的), removed 4 tags Sudachi never
       uses, clearer wording for 非自立可能 and the 可能 tags. A test checks the list stays complete.
 - Decided: punctuation and symbols keep an empty reading (no fallback to the surface).
-- [ ] Test on a real iPhone (load, memory, speed).
+- [ ] **Parked (2026-10-10, owner).** Test on a real iPhone (load, memory, speed).
 - [ ] CI: Node tests and the browser test page.
 - [ ] More reading fixes: 2,303 of jp-word-ranks-data's 37,608 kanji words still differ (261 in the top 10,000; `node scripts/check-readings.mjs`) (most are single kanji out of
       context, or katakana words with no reading). Candidates: 今日は (こんにちは), 良い (いい), 体中 (からだじゅう).
