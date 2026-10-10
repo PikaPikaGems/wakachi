@@ -6,7 +6,7 @@
 import type { Analyzer, AnalyzerOptions, AnalyzerErrorCode, CallOptions, Morpheme } from "./types.js";
 export type * from "./types.js";
 import { createPool, KakeraError } from "kakera";
-import { fixReadings } from "./readings.js";
+import { checkReadings, fixReadings } from "./readings.js";
 import { furiganaOf, groupBunsetsu } from "./text.js";
 
 /** Set by the build (scripts/build.mjs); the worker carries the same value. */
@@ -23,14 +23,6 @@ export class AnalyzerError extends AnalyzerErrorBase {
 
 const pool = createPool({ prefix: "wakachi", ErrorClass: AnalyzerError });
 let versionChecked = false;
-
-function checkReadings(readings: Record<string, string>) {
-  if (readings == null || typeof readings !== "object" || Array.isArray(readings)) throw new TypeError("readings must be an object like { \"私\": \"わたくし\" }");
-  for (const [k, v] of Object.entries(readings)) {
-    if (!k || typeof v !== "string" || !/^[ぁ-ゖァ-ヺー]+$/.test(v)) throw new TypeError(`readings["${k}"] must be kana, not ${JSON.stringify(v)}`);
-  }
-  return { ...readings };
-}
 
 /**
  * An analyzer: a light handle with its own reading options. Sudachi is shared by all analyzers and loaded by load().

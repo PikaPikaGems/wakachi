@@ -8,3 +8,5 @@ test/files/
 files/
 demo/
 *.tgz
+# built by `npm run build:test-react`
+test/react-app.js

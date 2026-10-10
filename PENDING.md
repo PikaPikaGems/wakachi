@@ -14,8 +14,10 @@
 - [x] Demo site: https://pikapikagems.github.io/wakachi/ (`npm run publish:demo` updates it).
 - [x] First release: v0.1.0 (pre-release, 2026-10-09) with the tarball and `files/`; the playground installs from it.
       Next releases: bump the version, `npm pack`, `gh release create v<version> wakachi-<version>.tgz files/*`.
-- [ ] `wakachi/react`: `useWakachi(text)` and `useWakachiEngine()`, designed in API.md §12; React as an optional peer
-      dependency. No `<Furigana>` component: API.md shows the few lines with `furiganaOf`.
+- [x] `wakachi/react` (2026-10-10): `useWakachi(text)` and `useWakachiEngine()`, API.md §12; React ≥ 18 as an optional peer dependency.
+      One shared analyzer per filesUrl for all hooks (no provider). Node tests (test/react.test.mjs, with a fake
+      engine), type tests (test/types/react.ts), and test/react.html (a small React app with automatic checks;
+      `npm run build:test-react`), passing in Chromium and WebKit. Not released yet.
 - [x] `debugReport()` (from kakera), API.md §12 (2026-10-09).
 - [x] English part-of-speech names checked (2026-10-09) against the UniDic English tagset and SudachiDict's own
       tag list: added the 4 missing suffix kinds (名詞的, 動詞的, 形容詞的, 形状詞的), removed 4 tags Sudachi never

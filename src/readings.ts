@@ -304,3 +304,12 @@ export function fixReadings(words: Morpheme[], { everydayReadings = true, readin
   }
   return applyOwn(ws, readings);
 }
+
+/** Checks `readings` ({ "私": "わたくし" }: kana only) and returns a copy. Throws TypeError. */
+export function checkReadings(readings: Record<string, string>) {
+  if (readings == null || typeof readings !== "object" || Array.isArray(readings)) throw new TypeError("readings must be an object like { \"私\": \"わたくし\" }");
+  for (const [k, v] of Object.entries(readings)) {
+    if (!k || typeof v !== "string" || !/^[ぁ-ゖァ-ヺー]+$/.test(v)) throw new TypeError(`readings["${k}"] must be kana, not ${JSON.stringify(v)}`);
+  }
+  return { ...readings };
+}

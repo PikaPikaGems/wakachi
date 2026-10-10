@@ -20,6 +20,9 @@ await analyzer.furigana("私は明日10月4日に行く");
 await analyzer.analyze("猫が好き。");                     // words with readings, dictionary forms, parts of speech
 ```
 
+React (optional, React 18 or later): `useWakachi(text)` and `useWakachiEngine()` from `wakachi/react`, in
+[API.md §12](API.md#12-react).
+
 ## What it adds to Sudachi
 
 - **Everyday readings:** 私 わたし (not わたくし), 明日 あした, 日本 にほん, お母さん, 言う いう, and numbers read as numbers
@@ -52,14 +55,17 @@ src/worker.ts       Sudachi in the worker: streams the dictionary straight into 
 src/analyze.ts      Sudachi's output to words: positions, URL/emoji protection, batching
 src/readings.ts     everyday readings and numbers; the app's own readings
 src/text.ts         wakachi/text: furigana, bunsetsu, sentences, labels
+src/react.ts        wakachi/react: the hooks (React is an optional peer dependency)
+src/react-state.ts  useWakachi()'s state without React, so Node tests can drive it
 src/split-input.ts  cutting long text at sentence ends
 src/pos.ts          Sudachi's part-of-speech tags to pos/tags
 src/sudachi-glue.js wasm-bindgen glue of the Sudachi build (scripts/sudachi-build.mjs names it)
 bin/wakachi.mjs     wakachi copy-files
 scripts/            build.mjs (dist/), make-files.mjs (files/)
 src/types.ts        public API types, checked against the implementation
-dist/types/         generated declarations (index.d.ts, text.d.ts, types.d.ts)
-test/               Node tests; analyzer.html: try it + automatic checks in the browser
+dist/types/         generated declarations (index.d.ts, text.d.ts, react.d.ts, ...)
+test/               Node tests; analyzer.html: try it + automatic checks in the browser;
+                    react.html: the hooks in a small React app + automatic checks
 ```
 
 ## Development
@@ -77,6 +83,7 @@ npm run test:types              # the TypeScript types
 npm run build                   # dist/
 node bin/wakachi.mjs copy-files test/files --from files
 python3 -m http.server 8095     # open http://localhost:8095/test/analyzer.html, then Run checks
+npm run build:test-react        # test/react-app.js for http://localhost:8095/test/react.html
 ```
 
 On an iPhone on the same Wi-Fi: serve with `--bind 0.0.0.0` and open `http://<this computer's IP>:8095/test/analyzer.html`.

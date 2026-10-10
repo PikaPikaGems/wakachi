@@ -10,7 +10,7 @@ downloaded once (in parts, so any static host works) and kept on the device.
 |---|---|
 | `wakachi` | `createAnalyzer`, `AnalyzerError`, `VERSION`, types |
 | `wakachi/text` | Furigana, bunsetsu, sentence splitting: pure functions, no worker, no dictionary (§9) |
-| `wakachi/react` *(later)* | `useWakachi(text)`, `useWakachiEngine()` |
+| `wakachi/react` | `useWakachi(text)`, `useWakachiEngine()` (§12) |
 
 The quickest possible use:
 
@@ -372,7 +372,7 @@ merge oddly.
 Types come with the package (`dist/types/index.d.ts`, `dist/types/text.d.ts`, generated from the TypeScript source): `Morpheme`, `RubySegment`, `AnalyzerOptions`,
 `LoadProgress`, `AnalyzerError` and the rest.
 
-## 12. React *(planned, not built yet)*
+## 12. React
 
 `wakachi/react`, with React as an optional peer dependency (plain-JS apps never need it). Two hooks:
 `useWakachi(text)` where the text is shown, `useWakachiEngine()` to manage the download and memory.
@@ -404,11 +404,20 @@ function Reader({ text }) {
 | `"not-loaded"` | `load`, `cached`, `downloadMB` |
 | `"loading"` | `progress` (`stage` is `"downloading"` or `"preparing"`) |
 | `"done"` | `words`, `bunsetsu`, `furigana`, `stale` (`true` while a newer `text` is being analyzed; the previous result stays so nothing flickers) |
+
+- `cached` and `downloadMB` are `null` for a moment after mounting, until the small manifest file has been read.
+- `furigana` is `furiganaOf(words)` and `bunsetsu` is `groupBunsetsu(words)`, ready to use.
+- An analysis that fails (e.g. `timeout`) shows as `status: "error"`; `retry()` analyzes again. A new `text` clears
+  it.
 | `"unavailable"` | `reason` |
 | `"error"` | `error`, `retry` |
 
 The fields exist only in their status, so TypeScript catches using `words` before they exist. Outdated calls are
-dropped when `text` changes. After the memory was freed (a minute unused, the page hidden, `unload()`), `status` is
+dropped when `text` changes. Long texts need nothing special: they are analyzed in pieces, like `analyze()`.
+
+All hooks share one dictionary per `filesUrl`, without a provider: the engine options (`filesUrl`, `idleTimeout`,
+`stopWhenHidden`, `crashGuard`, `timeouts`, `persistStorage`) come from the first hook that uses that `filesUrl`;
+`readings` and `everydayReadings` belong to each `useWakachi()`. After the memory was freed (a minute unused, the page hidden, `unload()`), `status` is
 `"loading"` for a moment: it reloads from the device, no download. Furigana styling is plain CSS:
 `rt { font-size: 0.5em; color: #888; }`.
 
@@ -418,11 +427,11 @@ change it. yomiage's `useYomiageEngine()` returns the same shape, so one setting
 ```tsx
 const e = useWakachiEngine();
 e.status        // "not-loaded" | "downloading" | "loading" | "ready" | "stopped" | "unavailable" | "error"
-e.cached        // the files are on this device
-e.downloadMB    // 45
+e.cached        // the files are on this device (null until known)
+e.downloadMB    // 45 (null until known)
 e.progress      // { stage, fraction, ... } while loading, otherwise null
 e.error         // the last error, or null
-e.load()        // download if needed, then load into memory
+e.load()        // download if needed, then load into memory (never rejects: see e.status and e.error)
 e.unload()      // free the memory, keep the files
 e.clearCache()  // delete the files from this device
 e.debugReport() // text to paste into a bug report
@@ -435,5 +444,5 @@ See yomiage's API.md §11 for a settings row that works with both.
 `analyzer.debugReport()` returns plain text that can be pasted into a bug report. It includes package and kakera
 versions, browser and device details, the files address and manifest version, status, the last load error and its
 causes, which file parts are on the device, storage estimates, the crash-guard record, and the last load's log and
-timings. It never includes analyzed text. The shared report is provided by kakera. A future React engine hook will
-expose the same report as `e.debugReport()`.
+timings. It never includes analyzed text. The shared report is provided by kakera. `useWakachiEngine()` exposes
+the same report as `e.debugReport()`.

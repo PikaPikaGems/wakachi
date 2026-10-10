@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wakachi/react test</title>
+<style>
+  body { font: 15px/1.6 system-ui, sans-serif; max-width: 760px; margin: 2em auto; padding: 0 16px; }
+  rt { font-size: 0.5em; color: #888; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .pass { color: #1a7f37; } .fail { color: #cf222e; }
+  pre { white-space: pre-wrap; background: #f6f8fa; padding: 8px; max-height: 240px; overflow: auto; }
+</style>
+</head>
+<body>
+<h1>wakachi/react</h1>
+<p>The hooks as an app uses them: <code>useWakachiEngine()</code> in the row, two <code>useWakachi(text)</code>
+readers below (b has <code>readings: { 私: "わたくし" }</code>). Build first: <code>npm run build &amp;&amp; npm run
+build:test-react</code>, and <code>node bin/wakachi.mjs copy-files test/files --from files</code>.</p>
+<div id="app"></div>
+
+<h2>Checks</h2>
+<p>Runs automatic checks (loads the dictionary).</p>
+<div class="row"><button id="run">Run checks</button> <b id="summary"></b></div>
+<ol id="results"></ol>
+
+<script type="module">
+import "./react-app.js";
+const $ = (id) => document.getElementById(id);
+const h = () => window.hooks;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function until(what, cond, ms = 30_000) {
+  const t0 = Date.now();
+  while (!cond()) { if (Date.now() - t0 > ms) throw new Error(`timed out waiting for ${what}`); await sleep(20); }
+}
+const assert = (ok, msg) => { if (!ok) throw new Error(msg); };
+const reading = (s, kanji) => s.furigana.find((x) => x.text === kanji)?.reading;
+const partsFetched = () => performance.getEntriesByType("resource").filter((e) => /\.part\d+/.test(e.name)).length;
+
+const checks = [
+  ["nothing loads on mount: not-loaded, size known, no parts fetched", async () => {
+    await until("info()", () => h().a?.status === "not-loaded" && h().a.cached != null && h().engine?.cached != null, 5000);
+    assert(typeof h().a.downloadMB === "number", "downloadMB");
+    assert(h().engine.status === "not-loaded", `engine ${h().engine.status}`);
+    assert(partsFetched() === 0, "parts were fetched before load()");
+  }],
+  ["load() from the engine row makes both readers done", async () => {
+    const loading = h().engine.load();
+    await until("loading", () => ["downloading", "loading", "ready"].includes(h().engine.status), 5000);
+    await loading;
+    await until("both done", () => h().a?.status === "done" && h().b?.status === "done");
+    assert(h().engine.status === "ready", h().engine.status);
+    assert(h().engine.cached === true, "cached after load");
+  }],
+  ["each reader applies its own readings", async () => {
+    assert(reading(h().a, "私") === "わたし", `a: ${reading(h().a, "私")}`);
+    assert(reading(h().b, "私") === "わたくし", `b: ${reading(h().b, "私")}`);
+    assert(h().a.words.map((x) => x.surface).join("") === "私は明日、東京へ行きます。", "words cover the text");
+    assert(h().a.bunsetsu.length > 2, "bunsetsu");
+  }],
+  ["new text: the previous result stays (stale) until the new one arrives; outdated texts are dropped", async () => {
+    const text = "猫が好きです。\n".repeat(3000);
+    h().history.length = 0;
+    h().setText("犬"); // replaced at once: never shown
+    h().setText(text);
+    const joined = () => h().a.words.map((x) => x.surface).join("");
+    await until("fresh", () => h().a.status === "done" && !h().a.stale && joined() === text);
+    const seen = h().history.map((s) => s.status === "done" ? (s.stale ? "stale" : s.words[0].surface) : s.status);
+    assert(seen.includes("stale"), `seen: ${seen}`);
+    assert(seen.every((s) => s === "stale" || s === "猫"), `no flicker and no outdated result: ${seen}`);
+  }],
+  ["after unload(), the next text reloads from the device (loading, then done)", async () => {
+    const before = partsFetched();
+    h().engine.unload();
+    await until("stopped", () => h().engine.status === "stopped", 5000);
+    assert(h().a.status === "done", `still showing results: ${h().a.status}`);
+    h().setText("今日は晴れ。");
+    await until("done again", () => h().a.status === "done" && !h().a.stale && h().a.words[0].surface === "今日");
+    assert(partsFetched() === before, "no download");
+  }],
+  ["debugReport() from the engine hook, without the text", async () => {
+    const report = await h().engine.debugReport();
+    assert(/"name": "wakachi"/.test(report), "package name");
+    assert(!report.includes("晴れ"), "contains text");
+  }],
+];
+
+$("run").onclick = async () => {
+  $("results").textContent = "";
+  let pass = 0;
+  for (const [name, fn] of checks) {
+    const li = document.createElement("li");
+    li.textContent = `${name} …`;
+    $("results").append(li);
+    try { await fn(); li.className = "pass"; li.textContent = `✓ ${name}`; pass++; }
+    catch (e) { li.className = "fail"; li.textContent = `✗ ${name}: ${e.message}`; console.error(e); }
+  }
+  $("summary").textContent = `${pass} / ${checks.length} passed`;
+};
+</script>
+</body>
+</html>

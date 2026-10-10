@@ -1,6 +1,8 @@
 // Builds what apps get:
 //   dist/wakachi.js         the page side (kakera bundled in; no dependencies left for apps to install)
 //   dist/text.js            wakachi/text: pure helpers, no worker
+//   dist/react.js           wakachi/react: the hooks. React stays out (a peer dependency), and so does the main
+//                           bundle: it imports ./wakachi.js, so the page has one Sudachi pool
 //   dist/wakachi-worker.js  Sudachi's worker, in one file. `wakachi copy-files` puts it next to the dictionary files,
 //                           and the page starts it from there
 //   dist/THIRD-PARTY-LICENSES.md  licences of what the worker and the dictionary files contain; copied with them
@@ -12,7 +14,7 @@ const root = new URL("../", import.meta.url);
 // Compile internal modules for Node tests and emit declarations from the same strict sources.
 execFileSync(process.execPath, [new URL("node_modules/typescript/bin/tsc", root).pathname, "-p", "tsconfig.json"], { cwd: root, stdio: "inherit" });
 fs.mkdirSync(new URL("dist/types/", root), { recursive: true });
-for (const name of ["index", "text", "types"]) {
+for (const name of ["index", "text", "types", "react", "react-state"]) {
   fs.copyFileSync(new URL(`.cache/compiled/${name}.d.ts`, root), new URL(`dist/types/${name}.d.ts`, root));
 }
 const pkg = JSON.parse(fs.readFileSync(new URL("package.json", root)));
@@ -23,6 +25,11 @@ const common = { bundle: true, format: "esm", platform: "browser", target: "es20
 
 await build({ ...common, entryPoints: ["src/index.ts"], outfile: "dist/wakachi.js" });
 await build({ ...common, entryPoints: ["src/text.ts"], outfile: "dist/text.js" });
+const mainBundle = {
+  name: "main-bundle",
+  setup(b) { b.onResolve({ filter: /^\.\/index\.js$/ }, () => ({ path: "./wakachi.js", external: true })); },
+};
+await build({ ...common, entryPoints: ["src/react.ts"], outfile: "dist/react.js", external: ["react"], plugins: [mainBundle] });
 await build({ ...common, entryPoints: ["src/worker.ts"], outfile: "dist/wakachi-worker.js", minify: true, legalComments: "eof", banner });
 
 fs.writeFileSync(new URL("dist/THIRD-PARTY-LICENSES.md", root), [
@@ -41,6 +48,6 @@ fs.writeFileSync(new URL("dist/THIRD-PARTY-LICENSES.md", root), [
   "",
 ].join("\n"));
 
-for (const f of ["wakachi.js", "text.js", "wakachi-worker.js", "THIRD-PARTY-LICENSES.md"]) {
+for (const f of ["wakachi.js", "text.js", "react.js", "wakachi-worker.js", "THIRD-PARTY-LICENSES.md"]) {
   console.log(`dist/${f}  ${(fs.statSync(new URL(`dist/${f}`, root)).size / 1024).toFixed(0)} KB`);
 }
