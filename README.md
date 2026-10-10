@@ -48,7 +48,31 @@ downloadButton.onclick = async () => { localStorage.setItem("wakachi", "on"); aw
 deleteButton.onclick = async () => { localStorage.removeItem("wakachi"); await analyzer.clearCache(); };
 ```
 
-With React, the same with `useWakachiEngine()`: `e.cached`, `e.load()` and `e.clearCache()`.
+With React, the same with `useWakachiEngine()`:
+
+```tsx
+import { useEffect } from "react";
+import { useWakachiEngine } from "wakachi/react";
+
+function FuriganaSetting() {
+  const dict = useWakachiEngine();
+
+  // they said yes before and the files are on this device: turn it back on (no download)
+  useEffect(() => {
+    if (localStorage.getItem("wakachi") === "on" && dict.cached && dict.status === "not-loaded") dict.load();
+  }, [dict.cached]);
+
+  const turnOn = () => { localStorage.setItem("wakachi", "on"); dict.load(); };
+  const turnOff = () => { localStorage.removeItem("wakachi"); dict.clearCache(); };
+
+  return dict.status === "not-loaded"
+    ? <button onClick={turnOn}>{dict.cached ? "Turn on" : `Download (${dict.downloadMB ?? "…"} MB)`}</button>
+    : <button onClick={turnOff}>Delete from device</button>;
+}
+```
+
+`dict.cached` is `null` for a moment after mounting (the manifest is being read), which is why the effect waits
+for it.
 
 ## What it adds to Sudachi
 
