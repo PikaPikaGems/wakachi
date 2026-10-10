@@ -23,6 +23,33 @@ await analyzer.analyze("猫が好き。");                     // words with rea
 React (optional, React 18 or later): `useWakachi(text)` and `useWakachiEngine()` from `wakachi/react`, in
 [API.md §12](API.md#12-react).
 
+## Nothing downloads until the user says so
+
+The dictionary is a 45 MB download and ~135 MB of memory, so wakachi never fetches or loads it by itself:
+
+- **Opening the page** downloads nothing big. Only a small `manifest.json` is read, when you ask for the size
+  (`analyzer.info()`, or the React hooks), so you can show "Download (45 MB)".
+- **Opting in:** only `load()` downloads (the first time) and loads into memory. Call it from something the user chose,
+  like a button. Unused memory is freed by itself (after a minute, or when the page is in the background) and comes
+  back from the device when needed, without downloading.
+- **Opting out:** `clearCache()` ("Delete from device") deletes the files, frees the memory and turns the feature
+  off everywhere on the page. Nothing downloads again until the next `load()`.
+
+**Your app remembers the choice.** On every visit, even when the files are already on the device, wakachi starts as
+`"not-loaded"` and waits for `load()`. To bring the feature back for a user who opted in before, save their choice
+and call `load()` at startup. That reads from the device; nothing is downloaded:
+
+```js
+const analyzer = createAnalyzer();
+const { cached } = await analyzer.info();
+if (localStorage.getItem("wakachi") === "on" && cached) await analyzer.load();   // they said yes before
+
+downloadButton.onclick = async () => { localStorage.setItem("wakachi", "on"); await analyzer.load(); };
+deleteButton.onclick = async () => { localStorage.removeItem("wakachi"); await analyzer.clearCache(); };
+```
+
+With React, the same with `useWakachiEngine()`: `e.cached`, `e.load()` and `e.clearCache()`.
+
 ## What it adds to Sudachi
 
 - **Everyday readings:** 私 わたし (not わたくし), 明日 あした, 日本 にほん, お母さん, 言う いう, and numbers read as numbers
