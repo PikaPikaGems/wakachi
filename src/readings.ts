@@ -10,7 +10,7 @@
 //
 // Readings stay katakana (like Sudachi's); keys and values may be given in either kana.
 
-import type { Morpheme, AnalyzerOptions } from "./types.js";
+import type { Morpheme, AnalyzerOptions, PosTag } from "./types.js";
 
 const toKatakana = (s: string) => s.replace(/[ぁ-ゖ]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0x60));
 
@@ -154,6 +154,7 @@ const COUNTERS: Record<string, CounterRule> = {
   // さ / た-row
   "歳": { gem: GEM_KST }, "才": { gem: GEM_KST }, "冊": { gem: GEM_KST }, "週": { gem: GEM_KST }, "週間": { gem: GEM_KST },
   "通": { gem: GEM_KST }, "着": { gem: GEM_KST }, "頭": { gem: GEM_KST }, "点": { gem: GEM_KST }, "足": { gem: GEM_KST },
+  "等": { gem: GEM_KST }, "説": { gem: GEM_KST }, "句": { gem: GEM_K },
   // は-row: いっぽん, さんぼん, よんほん; いっぷん, さんぷん, よんぷん
   "本": { gem: GEM_K, h: "b" }, "杯": { gem: GEM_K, h: "b" }, "匹": { gem: GEM_K, h: "b" },
   "分": { gem: GEM_K, h: "p", pAfterYon: true }, "泊": { gem: GEM_K, h: "p" }, "発": { gem: GEM_K, h: "p" },
@@ -166,13 +167,18 @@ const BASE: Record<string, string> = { "回": "カイ", "個": "コ", "階": "�
   "箇月": "カゲツ", "曲": "キョク", "件": "ケン", "軒": "ケン", "校": "コウ", "歳": "サイ", "才": "サイ", "冊": "サツ", "週": "シュウ",
   "週間": "シュウカン", "通": "ツウ", "着": "チャク", "頭": "トウ", "点": "テン", "足": "ソク", "本": "ホン", "杯": "ハイ", "匹": "ヒキ",
   "分": "フン", "泊": "ハク", "発": "ハツ", "歩": "ホ", "票": "ヒョウ", "品": "ヒン", "時": "ジ", "時間": "ジカン", "年": "ネン",
-  "円": "エン", "月": "ガツ", "人": "ニン" };
+  "円": "エン", "月": "ガツ", "人": "ニン",
+  "等": "トウ", "説": "セツ", "句": "ク" };
 const H_TO: Record<"b" | "p", Record<string, string>> = { b: { "ハ": "バ", "ヒ": "ビ", "フ": "ブ", "ヘ": "ベ", "ホ": "ボ" }, p: { "ハ": "パ", "ヒ": "ピ", "フ": "プ", "ヘ": "ペ", "ホ": "ポ" } };
 
 // Whole words: number + counter read as one (they become one word, so furigana spans both)
 const DAYS: Record<number, string> = { 1: "ツイタチ", 2: "フツカ", 3: "ミッカ", 4: "ヨッカ", 5: "イツカ", 6: "ムイカ", 7: "ナノカ", 8: "ヨウカ", 9: "ココノカ", 10: "トオカ", 14: "ジュウヨッカ", 20: "ハツカ", 24: "ニジュウヨッカ" };
 const TSU: Record<number, string> = { 1: "ヒトツ", 2: "フタツ", 3: "ミッツ", 4: "ヨッツ", 5: "イツツ", 6: "ムッツ", 7: "ナナツ", 8: "ヤッツ", 9: "ココノツ" };
 const PEOPLE: Record<number, string> = { 1: "ヒトリ", 2: "フタリ" };
+const FURI: Record<number, string> = { 1: "ヒトフリ", 2: "フタフリ" }; // 1振り, 2振り (swings, swords); no fixed reading from 3 on
+// Nouns Sudachi doesn't tag as counters (助数詞) that count after a number: 1句 いっく, 1説 いっせつ
+const COUNTER_NOUNS = new Set(["句", "説"]);
+const isCounter = (w: Morpheme) => w.tags.includes("助数詞") || w.pos === "接尾辞" || COUNTER_NOUNS.has(w.surface);
 
 const CUT: Record<string, string> = { "イチ": "イッ", "ロク": "ロッ", "ハチ": "ハッ", "ジュウ": "ジュッ", "ヒャク": "ヒャッ" };
 
@@ -190,6 +196,7 @@ export function countReading(n: number | null, pieces: string[], counter: string
   }
   if (counter === "つ" && TSU[n!]) return { whole: TSU[n!] };
   if (counter === "人" && PEOPLE[n!] && !afterDai) return { whole: PEOPLE[n!] }; // 第一人者: いちにん
+  if (counter === "振り" && FURI[n!]) return { whole: FURI[n!] };
   if ((counter === "歳" || counter === "才") && n === 20) return { whole: "ハタチ" };
   const rule = COUNTERS[counter];
   if (!rule) return null;
@@ -256,16 +263,18 @@ function fixNumbers(ws: Morpheme[]): Morpheme[] {
     let counter: Morpheme | null = ws[j];
     if (counter?.surface === "分" && ws[j + 1]?.surface === "の") counter = null; // 三分の一: a fraction, さんぶん
     if (n === 0 && decimal < 0 && counter?.tags.includes("助数詞")) pieces = ["レイ"]; // 零時, 0時: れいじ
-    const hasRule = counter && decimal < 0 && (counter.tags.includes("助数詞") || counter.pos === "接尾辞") && countReading(n, pieces, counter.surface);
+    const hasRule = counter && decimal < 0 && isCounter(counter) && countReading(n, pieces, counter.surface);
     // one kanji numeral on its own (零, 億, 十): Sudachi's reading fits better than a computed one
     if (j - i === 1 && !digits && !isNan && !hasRule) { out.push(w); continue; }
     const prev = out.at(-1);
-    const rule = counter && decimal < 0 && (counter.tags.includes("助数詞") || counter.pos === "接尾辞")
+    const rule = counter && decimal < 0 && isCounter(counter)
       ? countReading(isNan ? null : n, pieces, counter.surface, { afterMonth: prev?.surface.endsWith("月"), afterDai: (prev?.surface ?? "") === "第" })
       : null;
     if (rule && "whole" in rule) { out.push({ ...merged(ws, i, j + 1, rule.whole), pos: "名詞", tags: ["数詞", "助数詞"] }); i = j; continue; }
     out.push(j - i > 1 || !isNan ? { ...merged(ws, i, j, rule ? rule.number : pieces.join("")), pos: "名詞" } : { ...w, reading: rule ? rule.number : w.reading });
-    if (rule) { out.push({ ...counter!, reading: rule.counter }); i = j; } else i = j - 1;
+    // tagged as a counter, so the number and counter stay one phrase (groupBunsetsu) even for COUNTER_NOUNS
+    const counterTags: PosTag[] = counter?.tags.includes("助数詞") ? counter.tags : [...(counter?.tags ?? []), "助数詞"];
+    if (rule) { out.push({ ...counter!, reading: rule.counter, tags: counterTags }); i = j; } else i = j - 1;
   }
   return out;
 }

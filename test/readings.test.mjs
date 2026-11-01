@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { makeAnalyzeText } from "../.cache/compiled/analyze.js";
 import { fixReadings, numberPieces, parseNumber } from "../.cache/compiled/readings.js";
 import { sudachi } from "./sudachi.js";
+import { groupBunsetsu } from "../.cache/compiled/text.js";
 
 const { glue } = await sudachi("readings");
 const analyzeText = makeAnalyzeText(glue.tokenize);
@@ -60,6 +61,10 @@ test("numbers: counter sound changes", () => {
     "8歳": "はっさい", "20歳": "はたち", "一週間": "いっしゅうかん",
     "4時": "よじ", "7時": "しちじ", "9時": "くじ", "4月": "しがつ", "9月": "くがつ", "4年": "よねん", "4人": "よにん",
     "1人": "ひとり", "2人": "ふたり", "1つ": "ひとつ",
+    "1等の賞品": "いっとうのしょうひん", "8等": "はっとう", "3等": "さんとう",
+    "1句": "いっく", "１句": "いっく", "10句": "じゅっく", "6句": "ろっく", "2句": "にく",
+    "1説によると": "いっせつによると", "3説": "さんせつ",
+    "1振りで": "ひとふりで", "2振り": "ふたふり",
     "4日": "よっか", "20日": "はつか", "二十日": "はつか", "十四日": "じゅうよっか", "15日": "じゅうごにち",
     "4月1日": "しがつついたち", "1日に3回": "いちにちにさんかい", "一日中": "いちにちじゅう",
   };
@@ -68,6 +73,12 @@ test("numbers: counter sound changes", () => {
     if (text === "一日中") { assert.match(whole(text), /^いちにち/); continue; }
     assert.equal(whole(text), want, text);
   }
+});
+
+test("numbers: a counter Sudachi doesn't tag (句, 説) stays in the number's phrase", () => {
+  const phrases = (text) => groupBunsetsu(fixReadings(analyzeText(text))).map((b) => b.surface);
+  assert.deepEqual(phrases("俳句を１句詠む"), ["俳句を", "１句", "詠む"]);
+  assert.deepEqual(phrases("1説によると"), ["1説に", "よると"]);
 });
 
 test("positions still line up after merging", () => {
