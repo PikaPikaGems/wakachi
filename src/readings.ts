@@ -22,6 +22,9 @@ const WORDS: Record<string, string> = {
   "或いは": "アルイハ", "若しくは": "モシクハ", "所謂": "イワユル", "煩い": "ウルサイ", "不味い": "マズイ",
 };
 
+/** Runs of words Sudachi splits that are one word: 同一人 (同 + 一人, not ひとり). Matched like the app's own readings. */
+const RUNS: Record<string, string> = { "同一人": "どういつにん" };
+
 const FAMILY: Record<string, string> = { "父": "トウ", "母": "カア", "兄": "ニイ", "姉": "ネエ" };
 const FAMILY_AFTER = new Set(["さん", "ちゃん", "様", "さま"]);
 const NANI_BEFORE = new Set(["か", "も", "が", "を", "に", "から", "まで", "より", "それ", "これ", "あれ", "一つ"]);
@@ -73,6 +76,8 @@ function fixWord(ws: Morpheme[], i: number) {
   if (w.surface === "会社" && prev && (GAISHA_AFTER.has(prev.surface) || (prev.pos === "名詞" && !prev.tags.includes("数詞")) || prev.pos === "接頭辞")) return "ガイシャ";
   // 予定通り, いつも通り, 今まで通り: どおり (その通り, 言う通り stay とおり)
   if (w.surface === "通り" && w.reading === "トオリ" && prev && (["名詞", "代名詞", "副詞", "接尾辞"].includes(prev.pos) || prev.surface === "まで")) return "ドオリ";
+  // この前, その前, あの前: まえ (Sudachi says ぜん before 、)
+  if (w.surface === "前" && w.reading === "ゼン" && ["この", "その", "あの"].includes(prev?.surface ?? "")) return "マエ";
   // 誕生日, 金曜日
   if (w.surface === "日" && ((prev?.surface ?? "") === "誕生" || prev?.surface.endsWith("曜"))) return "ビ";
   // 気に入る: いる, not はいる
@@ -91,9 +96,11 @@ const KANJI_SMALL: Record<string, number> = { "十": 10, "百": 100, "千": 1000
 const KANJI_BIG: Record<string, number> = { "万": 1e4, "億": 1e8, "兆": 1e12 };
 const isDigitText = (s: string) => /^[0-9０-９]+$/.test(s);
 // Sudachi gives digits as one word ("10", "1,000", "3.14") or (older builds) one word per digit
-const isNumeralWord = (w: Morpheme) => w.tags.includes("数詞") && w.surface !== "何"
-  && (/^[0-9０-９][0-9０-９,，.．]*$/.test(w.surface) || /^[〇零一二三四五六七八九十百千万億兆]+$/.test(w.surface));
 const D = "[0-9０-９]";
+// digits with kanji units, one word in Sudachi: 700万, 3億5000万, 1万2000, 3千
+const DIGITS_AND_UNITS = new RegExp(`^${D}[0-9０-９,，]*([十百千万億兆][0-9０-９,，]*)+$`);
+const isNumeralWord = (w: Morpheme) => w.tags.includes("数詞") && w.surface !== "何"
+  && (/^[0-9０-９][0-9０-９,，.．]*$/.test(w.surface) || /^[〇零一二三四五六七八九十百千万億兆]+$/.test(w.surface) || DIGITS_AND_UNITS.test(w.surface));
 const NUMBER_TEXT = new RegExp(`^(${D}{1,3}([,，]${D}{3})+|${D}+)([.．]${D}+)?$`); // 12, 1,000, 3.14, 1,234.5
 const halfWidth = (s: string) => s.replace(/[０-９．，]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
 
@@ -247,7 +254,7 @@ function fixNumbers(ws: Morpheme[]): Morpheme[] {
     }
     const runText = ws.slice(i, j).map((x) => x.surface).join("");
     const digits = /^[0-9０-９]/.test(runText);
-    if (digits && !NUMBER_TEXT.test(runText)) {
+    if (digits && !NUMBER_TEXT.test(runText) && !DIGITS_AND_UNITS.test(runText)) {
       // not a number like 1,000 or 3.14 (e.g. a list 1,2,3): keep the words as Sudachi gave them
       out.push(...ws.slice(i, j)); i = j - 1; continue;
     }
@@ -310,6 +317,7 @@ export function fixReadings(words: Morpheme[], { everydayReadings = true, readin
   if (everydayReadings) {
     ws = fixNumbers(ws);
     ws = ws.map((w, i) => { const r = fixWord(ws, i); return r == null ? w : { ...w, reading: r }; });
+    ws = applyOwn(ws, RUNS);
   }
   return applyOwn(ws, readings);
 }
